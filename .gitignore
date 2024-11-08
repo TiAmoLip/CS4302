@@ -162,3 +162,4 @@ cython_debug/
 #.idea/
 *.tar.gz
 pytorch-v1.12.1/
+report1.nsys-rep
