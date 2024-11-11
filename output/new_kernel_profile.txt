@@ -50,3 +50,81 @@ void cutlass::Kernel<cutlass_80_tensorop_s1688gemm_6...         0.00%       0.00
 -------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
 Self CPU time total: 2.683s
 Self CUDA time total: 114.703ms
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      73.450ms        62.96%      73.450ms      17.488us          4200  
+                                           aten::matmul         0.13%       3.489ms        58.05%        1.545s       1.120ms       0.000us         0.00%      55.026ms      39.874us          1380  
+                                               aten::mm         2.49%      66.309ms        57.92%        1.542s       1.117ms      55.026ms        47.17%      55.026ms      39.874us          1380  
+                                              aten::gru         1.51%      40.254ms        19.13%     509.075ms     343.970us       0.000us         0.00%      37.916ms      25.619us          1480  
+                                       aten::_cudnn_rnn        13.46%     358.149ms        16.93%     450.513ms     304.401us      37.916ms        32.50%      37.916ms      25.619us          1480  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      12.542ms        10.75%      12.542ms       9.088us          1380  
+                                              aten::cat         1.49%      39.570ms         2.43%      64.727ms      23.452us       7.566ms         6.49%       7.566ms       2.741us          2760  
+                                           aten::argmax         0.95%      25.395ms         1.36%      36.140ms      26.188us       7.091ms         6.08%       7.091ms       5.138us          1380  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us       7.091ms         6.08%       7.091ms       5.138us          1380  
+void elemWiseRNNcell<float, float, float, (cudnnRNNM...         0.00%       0.000us         0.00%       0.000us       0.000us       5.878ms         5.04%       5.878ms       2.084us          2820  
+                                        aten::embedding         0.38%      10.035ms         2.62%      69.805ms      47.166us       0.000us         0.00%       4.788ms       3.235us          1480  
+                                     aten::index_select         0.74%      19.810ms         1.99%      52.965ms      35.787us       4.788ms         4.10%       4.788ms       3.235us          1480  
+void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us       4.719ms         4.04%       4.719ms       3.239us          1457  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       3.910ms         3.35%       3.910ms       2.833us          1380  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       3.656ms         3.13%       3.656ms       2.649us          1380  
+                                              aten::add         0.88%      23.545ms         1.26%      33.495ms      24.272us       2.724ms         2.33%       2.724ms       1.974us          1380  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       2.724ms         2.33%       2.724ms       1.974us          1380  
+void cutlass::Kernel<cutlass_80_tensorop_s1688gemm_6...         0.00%       0.000us         0.00%       0.000us       0.000us       1.072ms         0.92%       1.072ms      10.720us           100  
+                                             aten::item         0.08%       2.221ms         5.49%     146.172ms     105.922us       0.000us         0.00%     932.000us       0.675us          1380  
+                              aten::_local_scalar_dense         0.28%       7.397ms         5.41%     143.951ms     104.312us     932.000us         0.80%     932.000us       0.675us          1380  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 2.662s
+Self CUDA time total: 116.666ms
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      73.412ms        62.89%      73.412ms      17.479us          4200  
+                                           aten::matmul         0.14%       3.489ms        56.64%        1.453s       1.053ms       0.000us         0.00%      55.082ms      39.914us          1380  
+                                               aten::mm         2.53%      64.853ms        56.50%        1.449s       1.050ms      55.082ms        47.18%      55.082ms      39.914us          1380  
+                                              aten::gru         1.44%      36.899ms        19.89%     510.145ms     344.693us       0.000us         0.00%      37.713ms      25.482us          1480  
+                                       aten::_cudnn_rnn        14.42%     369.827ms        17.82%     457.002ms     308.785us      37.713ms        32.31%      37.713ms      25.482us          1480  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      12.530ms        10.73%      12.530ms       9.080us          1380  
+                                              aten::cat         1.49%      38.222ms         2.43%      62.229ms      22.547us       7.710ms         6.60%       7.710ms       2.793us          2760  
+                                           aten::argmax         0.97%      24.933ms         1.39%      35.561ms      25.769us       7.004ms         6.00%       7.004ms       5.075us          1380  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us       7.004ms         6.00%       7.004ms       5.075us          1380  
+void elemWiseRNNcell<float, float, float, (cudnnRNNM...         0.00%       0.000us         0.00%       0.000us       0.000us       5.800ms         4.97%       5.800ms       2.057us          2820  
+                                        aten::embedding         0.37%       9.609ms         2.61%      67.051ms      45.305us       0.000us         0.00%       4.798ms       3.242us          1480  
+                                     aten::index_select         0.75%      19.218ms         1.99%      50.957ms      34.430us       4.798ms         4.11%       4.798ms       3.242us          1480  
+void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us       4.729ms         4.05%       4.729ms       3.246us          1457  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       4.047ms         3.47%       4.047ms       2.933us          1380  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       3.663ms         3.14%       3.663ms       2.654us          1380  
+                                              aten::add         0.89%      22.714ms         1.26%      32.309ms      23.412us       2.760ms         2.36%       2.760ms       2.000us          1380  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       2.760ms         2.36%       2.760ms       2.000us          1380  
+void cutlass::Kernel<cutlass_80_tensorop_s1688gemm_6...         0.00%       0.000us         0.00%       0.000us       0.000us       1.053ms         0.90%       1.053ms      10.530us           100  
+                                             aten::item         0.08%       2.105ms         5.93%     152.192ms     110.284us       0.000us         0.00%     962.000us       0.697us          1380  
+                              aten::_local_scalar_dense         0.27%       6.928ms         5.85%     150.087ms     108.759us     962.000us         0.82%     962.000us       0.697us          1380  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 2.565s
+Self CUDA time total: 116.737ms
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      73.304ms        62.95%      73.304ms      17.453us          4200  
+                                           aten::matmul         0.13%       3.219ms        57.32%        1.443s       1.046ms       0.000us         0.00%      55.087ms      39.918us          1380  
+                                               aten::mm         2.58%      65.012ms        57.19%        1.440s       1.043ms      55.087ms        47.30%      55.087ms      39.918us          1380  
+                                              aten::gru         1.49%      37.422ms        19.30%     486.011ms     328.386us       0.000us         0.00%      37.790ms      25.534us          1480  
+                                       aten::_cudnn_rnn        13.64%     343.306ms        17.16%     432.098ms     291.958us      37.790ms        32.45%      37.790ms      25.534us          1480  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      12.694ms        10.90%      12.694ms       9.199us          1380  
+                                              aten::cat         1.53%      38.569ms         2.49%      62.629ms      22.692us       7.486ms         6.43%       7.486ms       2.712us          2760  
+                                           aten::argmax         1.00%      25.124ms         1.43%      35.922ms      26.030us       7.012ms         6.02%       7.012ms       5.081us          1380  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us       7.012ms         6.02%       7.012ms       5.081us          1380  
+void elemWiseRNNcell<float, float, float, (cudnnRNNM...         0.00%       0.000us         0.00%       0.000us       0.000us       5.815ms         4.99%       5.815ms       2.062us          2820  
+                                        aten::embedding         0.38%       9.524ms         2.68%      67.432ms      45.562us       0.000us         0.00%       4.838ms       3.269us          1480  
+                                     aten::index_select         0.77%      19.366ms         2.04%      51.408ms      34.735us       4.838ms         4.15%       4.838ms       3.269us          1480  
+void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us       4.769ms         4.10%       4.769ms       3.273us          1457  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       3.871ms         3.32%       3.871ms       2.805us          1380  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       3.615ms         3.10%       3.615ms       2.620us          1380  
+                                              aten::add         0.92%      23.144ms         1.31%      33.049ms      23.949us       2.760ms         2.37%       2.760ms       2.000us          1380  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       2.760ms         2.37%       2.760ms       2.000us          1380  
+void cutlass::Kernel<cutlass_80_tensorop_s1688gemm_6...         0.00%       0.000us         0.00%       0.000us       0.000us       1.064ms         0.91%       1.064ms      10.640us           100  
+                                             aten::item         0.08%       2.075ms         5.68%     143.106ms     103.700us       0.000us         0.00%     887.000us       0.643us          1380  
+                              aten::_local_scalar_dense         0.29%       7.221ms         5.60%     141.031ms     102.196us     887.000us         0.76%     887.000us       0.643us          1380  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 2.518s
+Self CUDA time total: 116.455ms

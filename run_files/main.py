@@ -136,8 +136,6 @@ class Seq2Seq(nn.Module):
         return outputs
     
 
-
-
 encoder = Encoder(
     input_dim,
     encoder_embedding_dim,
@@ -230,7 +228,24 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_sh
 with open("output/new_kernel_profile.txt", "a") as f:
     f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
-# predictions = [t[0] for t in translations]
-# with open("output/new_kernel_predictions.txt", "w") as f:
-#     for prediction in predictions:
-#         f.write(" ".join(prediction[1:-1]) + "\n")
+
+def check_correctness(translations, correct_translations):
+    """
+    Check whether using custom kernels destory the correctness of the model.
+    Args:
+        translations: List[str],
+        correct_translations: List[long_str]
+    """
+    correct_translations = [t.split(" ") for t in correct_translations]
+    translations = [t[0][1:-1] for t in translations]
+    char_level_correctness = 0
+    assert len(translations) <= len(correct_translations)
+    
+    for i in range(len(translations)):
+        if translations[i] == correct_translations[i]:
+            char_level_correctness += 1
+    print(f"Character level correctness: {char_level_correctness/len(translations)}")
+with open("vocabs/original_predictions.txt",'r') as f:
+    correct_translations = f.read().split('\n')
+
+check_correctness(translations, correct_translations)

@@ -32,3 +32,5 @@ Operators to implement:
     - Linear: input shape (bs, hidden_dim*2+embed_dim), output shape (bs, vocab_size)
         It is worth to note that for a `nn.Linear(a, b)` instance, the shape of weight matrix is `(b, a)`, so maybe I need to implement the transpose operator.
 
+
+
