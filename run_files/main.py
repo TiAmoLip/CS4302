@@ -7,7 +7,7 @@ from collections import defaultdict
 import spacy
 import tqdm
 import torch
-import datasets
+from torch.profiler import profile, record_function, ProfilerActivity
 import pickle
 from myModel import Encoder, Decoder, Seq2Seq
 import time
@@ -84,7 +84,8 @@ class Decoder(nn.Module):
             (embedded.squeeze(0), hidden.squeeze(0), context.squeeze(0)), dim=1
         )
         # output = [batch size, embedding dim + hidden dim * 2]
-        prediction = self.fc_out(output)
+        # prediction = self.fc_out(output)
+        prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
         # prediction = [batch size, output dim]
         return prediction, hidden
     
@@ -185,57 +186,51 @@ def translate_sentence(
         ids = lookup_indices(de_vocab,tokens)
         tensor = torch.LongTensor(ids).unsqueeze(-1).to(device)
         
-        encode_start = time.time()
         context = model.encoder(tensor)
-        encode_end = time.time()
-        
-        
         hidden = context
         inputs = [en_vocab[sos_token]]
         decode_total = 0
         for _ in range(max_output_length):
             inputs_tensor = torch.LongTensor([inputs[-1]]).to(device)
-            decode_start = time.time()
             output, hidden = model.decoder(inputs_tensor, hidden, context)
-            decode_end = time.time()
             predicted_token = output.argmax(-1).item()
             inputs.append(predicted_token)
             if predicted_token == en_vocab[eos_token]:
                 break
-            decode_total += decode_end - decode_start
         tokens = lookup_tokens(en_index2word,inputs)
-    return tokens, encode_end - encode_start, decode_total
+    return (tokens,)
 
 unk = "<unk>"
-en_token2index = pickle.load(open("en_vocab_dict.pkl", "rb")) # token to index
+en_token2index = pickle.load(open("vocabs/en_vocab_dict.pkl", "rb")) # token to index
 en_index2token = {v: k for k, v in en_token2index.items()} # index to token
-de_token2index = pickle.load(open("de_vocab_dict.pkl", "rb"))
+de_token2index = pickle.load(open("vocabs/de_vocab_dict.pkl", "rb"))
 de_token2index = defaultdict(lambda: de_token2index[unk], de_token2index) # token to index
 sos_token = '<sos>'
 eos_token = "<eos>"
 
 
-with open("test_de.txt",'r') as f:
+with open("vocabs/test_de.txt",'r') as f:
     sentences = f.read().split('\n')
 
+with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True,with_stack=True) as prof:
+    translations = [
+        translate_sentence(
+            sentence,
+            model,
+            en_token2index,
+            de_nlp,
+            en_index2token,
+            de_token2index,
+            True,
+            sos_token,
+            eos_token,
+            device,
+        ) for sentence in tqdm.tqdm(sentences[:100])
+    ]
+with open("output/new_kernel_profile.txt", "a") as f:
+    f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
-translations = [
-    translate_sentence(
-        sentence,
-        model,
-        en_token2index,
-        de_nlp,
-        en_index2token,
-        de_token2index,
-        True,
-        sos_token,
-        eos_token,
-        device,
-    ) for sentence in tqdm.tqdm(sentences)
-]
-predictions = [t[0] for t in translations]
-with open("new_kernel_predictions.txt", "w") as f:
-    for prediction in predictions:
-        f.write(" ".join(prediction[1:-1]) + "\n")
-# print(f"Total Encode Time:{sum([t[1] for t in translations])} s")
-# print(f"Total Decode Time:{sum([t[2] for t in translations])} s")
+# predictions = [t[0] for t in translations]
+# with open("output/new_kernel_predictions.txt", "w") as f:
+#     for prediction in predictions:
+#         f.write(" ".join(prediction[1:-1]) + "\n")
