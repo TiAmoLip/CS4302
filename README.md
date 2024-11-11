@@ -26,11 +26,20 @@ Other bottleneck:
 
 Operators to implement:
 1. encoder:
-    - GRU forward: input shape (seq_len, bs, embed_dim), output shape (seq_len, bs, hidden_dim) for `output`, (nlayers, bs, hidden_dim) for `hidden`
+    - GRU forward:
+        - input shape: `(seq_len, bs, embed_dim)`
+        - output `output`: `(seq_len, bs, hidden_dim)`
+        - output `hidden`: `(nlayers, bs, hidden_dim)`
 2. decoder:
-    - GRU forward: (1, bs, hidden_dim) for `hidden`, (1, bs, hidden_dim) for `embedded`, output shape (1, bs, hidden_dim) for `output`, (1, bs, hidden_dim) for `hidden`.
-    - Linear: input shape (bs, hidden_dim*2+embed_dim), output shape (bs, vocab_size)
-        It is worth to note that for a `nn.Linear(a, b)` instance, the shape of weight matrix is `(b, a)`, so maybe I need to implement the transpose operator.
-
+    - GRU forward: 
+        - input `hidden`: `(1, bs, hidden_dim)`
+        - input `embed`: `(1, bs, hidden_dim+embed_dim)` 
+        - output `output`: `(1, bs, hidden_dim)`
+        - output `hidden`: `(1, bs, hidden_dim)`
+    - Linear forward:
+        - input shape: `(bs, hidden_dim*2+embed_dim)`
+        - output shape: `(bs, vocab_size)`
+        
+        It is worth to note that for a `nn.Linear(a, b)` instance, the shape of weight matrix is `(b, a)`, so maybe I need to implement the transpose operator. I replace `self.fc(out)` to `torch.matmul`, and it seems no influence.
 
 
