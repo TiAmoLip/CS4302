@@ -1,3 +1,4 @@
+# This file is the simplified version of `main.py` for simple encoder forward test.
 
 import torch.nn as nn
 import torch.optim as optim
@@ -185,17 +186,17 @@ def translate_sentence(
         tensor = torch.LongTensor(ids).unsqueeze(-1).to(device)
         
         context = model.encoder(tensor)
-        hidden = context
-        inputs = [en_vocab[sos_token]]
-        decode_total = 0
-        for _ in range(max_output_length):
-            inputs_tensor = torch.LongTensor([inputs[-1]]).to(device)
-            output, hidden = model.decoder(inputs_tensor, hidden, context)
-            predicted_token = output.argmax(-1).item()
-            inputs.append(predicted_token)
-            if predicted_token == en_vocab[eos_token]:
-                break
-        tokens = lookup_tokens(en_index2word,inputs)
+        # hidden = context
+        # inputs = [en_vocab[sos_token]]
+        # decode_total = 0
+        # for _ in range(max_output_length):
+        #     inputs_tensor = torch.LongTensor([inputs[-1]]).to(device)
+        #     output, hidden = model.decoder(inputs_tensor, hidden, context)
+        #     predicted_token = output.argmax(-1).item()
+        #     inputs.append(predicted_token)
+        #     if predicted_token == en_vocab[eos_token]:
+        #         break
+        # tokens = lookup_tokens(en_index2word,inputs)
     return (tokens,)
 
 unk = "<unk>"
@@ -210,42 +211,19 @@ eos_token = "<eos>"
 with open("vocabs/test_de.txt",'r') as f:
     sentences = f.read().split('\n')
 
-with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True,with_stack=True) as prof:
-    translations = [
-        translate_sentence(
-            sentence,
-            model,
-            en_token2index,
-            de_nlp,
-            en_index2token,
-            de_token2index,
-            True,
-            sos_token,
-            eos_token,
-            device,
-        ) for sentence in tqdm.tqdm(sentences[:30])
-    ]
-with open("output/new_kernel_profile.txt", "w") as f:
-    f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
-
-def check_correctness(translations, correct_translations):
-    """
-    Check whether using custom kernels destory the correctness of the model.
-    Args:
-        translations: List[str],
-        correct_translations: List[long_str]
-    """
-    correct_translations = [t.split(" ") for t in correct_translations]
-    translations = [t[0][1:-1] for t in translations]
-    char_level_correctness = 0
-    assert len(translations) <= len(correct_translations)
-    
-    for i in range(len(translations)):
-        if translations[i] == correct_translations[i]:
-            char_level_correctness += 1
-    print(f"Character level correctness: {char_level_correctness/len(translations)}")
-with open("vocabs/original_predictions.txt",'r') as f:
-    correct_translations = f.read().split('\n')
-
-check_correctness(translations, correct_translations)
+translations = [
+    translate_sentence(
+        sentence,
+        model,
+        en_token2index,
+        de_nlp,
+        en_index2token,
+        de_token2index,
+        True,
+        sos_token,
+        eos_token,
+        device,
+    ) for sentence in tqdm.tqdm(sentences)
+]
+print("Encoder forward test done.")
