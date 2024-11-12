@@ -161,5 +161,17 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 *.tar.gz
-pytorch-v1.12.1/
-report1.nsys-rep
+pytorch-v1.12.1/third_party
+pytorch-v1.12.1/test
+pytorch-v1.12.1/ios
+pytorch-v1.12.1/benchmarks
+pytorch-v1.12.1/binaries
+pytorch-v1.12.1/cmake
+pytorch-v1.12.1/android
+pytorch-v1.12.1/docs
+pytorch-v1.12.1/caffe2
+pytorch-v1.12.1/modules
+pytorch-v1.12.1/scripts
+pytorch-v1.12.1/torchgen
+pytorch-v1.12.1/torch
+pytorch-v1.12.1/tools
