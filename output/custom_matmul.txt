@@ -1,0 +1,26 @@
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+matmul_tiling(float*, float*, float*, int, int, int)...         0.00%       0.000us         0.00%       0.000us       0.000us     257.150ms        89.90%     257.150ms     348.915us           737  
+                                              aten::gru         2.44%      18.034ms        47.29%     349.134ms     455.194us       0.000us         0.00%      16.369ms      21.342us           767  
+                                       aten::_cudnn_rnn        38.50%     284.251ms        43.79%     323.290ms     421.499us      16.369ms         5.72%      16.369ms      21.342us           767  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us       7.467ms         2.61%       7.467ms       6.270us          1191  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us       6.007ms         2.10%       6.007ms       8.151us           737  
+                                              aten::cat         2.74%      20.228ms         4.32%      31.885ms      21.632us       3.895ms         1.36%       3.895ms       2.642us          1474  
+                                           aten::argmax         1.76%      12.974ms         2.40%      17.728ms      24.054us       3.535ms         1.24%       3.535ms       4.796us           737  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us       3.535ms         1.24%       3.535ms       4.796us           737  
+void elemWiseRNNcell<float, float, float, (cudnnRNNM...         0.00%       0.000us         0.00%       0.000us       0.000us       2.645ms         0.92%       2.645ms       2.221us          1191  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       2.163ms         0.76%       2.163ms       2.935us           737  
+                                        aten::embedding         0.67%       4.933ms         4.42%      32.621ms      42.531us       0.000us         0.00%       1.929ms       2.515us           767  
+                                     aten::index_select         1.24%       9.143ms         3.33%      24.558ms      32.018us       1.929ms         0.67%       1.929ms       2.515us           767  
+void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us       1.910ms         0.67%       1.910ms       2.516us           759  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       1.732ms         0.61%       1.732ms       2.350us           737  
+                                             aten::add_         1.01%       7.436ms         1.60%      11.798ms      16.008us       1.500ms         0.52%       1.500ms       2.035us           737  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       1.500ms         0.52%       1.500ms       2.035us           737  
+                                            aten::zeros         0.35%       2.557ms         2.52%      18.618ms      24.274us       0.000us         0.00%     894.000us       1.166us           767  
+                                            aten::zero_         0.29%       2.117ms         1.70%      12.535ms      16.343us       0.000us         0.00%     894.000us       1.166us           767  
+                                            aten::fill_         0.77%       5.700ms         1.41%      10.418ms      13.583us     894.000us         0.31%     894.000us       1.166us           767  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us     894.000us         0.31%     894.000us       1.166us           767  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 738.236ms
+Self CUDA time total: 286.054ms

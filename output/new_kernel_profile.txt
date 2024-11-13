@@ -1,26 +1,26 @@
 -------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
                                                    Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
 -------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      20.609ms        65.22%      20.609ms      15.976us          1290  
-                                           aten::linear         0.10%       1.760ms        77.09%        1.342s       3.211ms       0.000us         0.00%      15.766ms      37.718us           418  
-                                            aten::addmm         1.23%      21.430ms        76.85%        1.338s       3.201ms      15.766ms        49.90%      15.766ms      37.718us           418  
-                                              aten::gru         0.78%      13.528ms        17.52%     305.094ms     681.013us       0.000us         0.00%      10.185ms      22.734us           448  
-                                       aten::_cudnn_rnn        14.76%     257.079ms        16.44%     286.265ms     638.984us      10.185ms        32.23%      10.185ms      22.734us           448  
-std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us       3.349ms        10.60%       3.349ms       8.012us           418  
-                                           aten::argmax         0.55%       9.592ms         0.76%      13.280ms      31.770us       2.099ms         6.64%       2.099ms       5.022us           418  
-void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us       2.099ms         6.64%       2.099ms       5.022us           418  
-                                              aten::cat         0.74%      12.833ms         1.17%      20.380ms      24.378us       2.036ms         6.44%       2.036ms       2.435us           836  
-void elemWiseRNNcell<float, float, float, (cudnnRNNM...         0.00%       0.000us         0.00%       0.000us       0.000us       1.747ms         5.53%       1.747ms       2.003us           872  
-                                        aten::embedding         0.17%       3.032ms         1.28%      22.307ms      49.792us       0.000us         0.00%       1.417ms       3.163us           448  
-                                     aten::index_select         0.35%       6.138ms         0.98%      17.122ms      38.219us       1.417ms         4.48%       1.417ms       3.163us           448  
-void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us       1.393ms         4.41%       1.393ms       3.166us           440  
-void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       1.183ms         3.74%       1.183ms       2.830us           418  
-void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us     853.000us         2.70%     853.000us       2.041us           418  
-void cutlass::Kernel<cutlass_80_tensorop_s1688gemm_6...         0.00%       0.000us         0.00%       0.000us       0.000us     246.000us         0.78%     246.000us       8.200us            30  
-                                             aten::item         0.04%     671.000us         0.65%      11.263ms      26.945us       0.000us         0.00%      45.000us       0.108us           418  
-                              aten::_local_scalar_dense         0.13%       2.311ms         0.61%      10.592ms      25.340us      45.000us         0.14%      45.000us       0.108us           418  
-                       Memcpy DtoH (Device -> Pageable)         0.00%       0.000us         0.00%       0.000us       0.000us      45.000us         0.14%      45.000us       0.108us           418  
-                                            aten::zeros         0.01%     103.000us         0.05%     864.000us      28.800us       0.000us         0.00%      34.000us       1.133us            30  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      20.623ms        62.23%      20.623ms      15.987us          1290  
+                                           aten::matmul         0.07%       1.138ms        72.70%        1.118s       2.676ms       0.000us         0.00%      15.765ms      37.715us           418  
+                                               aten::mm         1.22%      18.721ms        72.63%        1.117s       2.673ms      15.765ms        47.57%      15.765ms      37.715us           418  
+                                              aten::gru         0.79%      12.217ms        20.37%     313.315ms     699.364us       0.000us         0.00%      10.235ms      22.846us           448  
+                                       aten::_cudnn_rnn        17.34%     266.814ms        19.22%     295.637ms     659.904us      10.235ms        30.88%      10.235ms      22.846us           448  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us       3.356ms        10.13%       3.356ms       8.029us           418  
+                                              aten::cat         0.83%      12.726ms         1.32%      20.340ms      24.330us       2.267ms         6.84%       2.267ms       2.712us           836  
+                                           aten::argmax         0.56%       8.567ms         0.78%      11.982ms      28.665us       2.113ms         6.38%       2.113ms       5.055us           418  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us       2.113ms         6.38%       2.113ms       5.055us           418  
+void elemWiseRNNcell<float, float, float, (cudnnRNNM...         0.00%       0.000us         0.00%       0.000us       0.000us       1.769ms         5.34%       1.769ms       2.029us           872  
+                                        aten::embedding         0.21%       3.188ms         1.49%      22.996ms      51.330us       0.000us         0.00%       1.452ms       3.241us           448  
+                                     aten::index_select         0.41%       6.331ms         1.14%      17.605ms      39.297us       1.452ms         4.38%       1.452ms       3.241us           448  
+void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us       1.428ms         4.31%       1.428ms       3.245us           440  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       1.244ms         3.75%       1.244ms       2.976us           418  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us       1.023ms         3.09%       1.023ms       2.447us           418  
+                                              aten::add         0.49%       7.488ms         0.69%      10.613ms      25.390us     841.000us         2.54%     841.000us       2.012us           418  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us     841.000us         2.54%     841.000us       2.012us           418  
+                                             aten::item         0.04%     615.000us         0.74%      11.326ms      27.096us       0.000us         0.00%     418.000us       1.000us           418  
+                              aten::_local_scalar_dense         0.14%       2.192ms         0.70%      10.711ms      25.624us     418.000us         1.26%     418.000us       1.000us           418  
+                       Memcpy DtoH (Device -> Pageable)         0.00%       0.000us         0.00%       0.000us       0.000us     418.000us         1.26%     418.000us       1.000us           418  
 -------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-Self CPU time total: 1.741s
-Self CUDA time total: 31.598ms
+Self CPU time total: 1.538s
+Self CUDA time total: 33.142ms

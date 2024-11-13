@@ -4,13 +4,21 @@ import torch.optim as optim
 import random
 import numpy as np
 from collections import defaultdict
+import argparse
 import spacy
 import tqdm
 import torch
 from torch.profiler import profile, record_function, ProfilerActivity
 import pickle
+import custom_matmul
+parser = argparse.ArgumentParser()
+parser.add_argument("--new_profiler_log", type=str, default="False")
+args = parser.parse_args()
 
-import time
+if args.new_profiler_log == "False" or args.new_profiler_log == "false" or args.new_profiler_log == "None":
+    new_profile_log = "new_kernel_profile"
+else:
+    new_profile_log = args.new_profiler_log
 
 seed = 1234
 
@@ -84,8 +92,11 @@ class Decoder(nn.Module):
             (embedded.squeeze(0), hidden.squeeze(0), context.squeeze(0)), dim=1
         )
         # output = [batch size, embedding dim + hidden dim * 2]
-        prediction = self.fc_out(output)
-        # prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
+        # prediction = self.fc_out(output)
+        # prediction = torch.zeros((output.shape[0], self.output_dim), device=device)
+        # custom_matmul.launch_matmul(output, self.fc_out.weight.T, prediction)
+        # prediction += self.fc_out.bias
+        prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
         # prediction = [batch size, output dim]
         return prediction, hidden
     
@@ -225,7 +236,8 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_sh
             device,
         ) for sentence in tqdm.tqdm(sentences[:30])
     ]
-with open("output/new_kernel_profile.txt", "w") as f:
+
+with open(f"output/{new_profile_log}.txt", "w") as f:
     f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
 
