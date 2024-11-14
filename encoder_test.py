@@ -3,6 +3,7 @@
 import torch.nn as nn
 import torch.optim as optim
 import random
+import logger
 import numpy as np
 from collections import defaultdict
 import spacy
@@ -10,6 +11,12 @@ import tqdm
 import torch
 from torch.profiler import profile, record_function, ProfilerActivity
 import pickle
+import os,signal
+
+def breakpoint():
+    os.kill(os.getpid(), signal.SIGTRAP)
+    logger.purple_print("breakpoint triggered.")
+
 
 import time
 
@@ -40,15 +47,19 @@ class Encoder(nn.Module):
         self.embedding = nn.Embedding(input_dim, embedding_dim)
         self.rnn = nn.GRU(embedding_dim, hidden_dim)
         self.dropout = nn.Dropout(dropout)
-
+    
     def forward(self, src):
         # src = [src length, batch size]
-        embedded = self.dropout(self.embedding(src))
+        breakpoint()
+        tmp = self.embedding.forward(src)
+
+        embedded = self.dropout.forward(tmp)
         # embedded = [src length, batch size, embedding dim]
-        outputs, hidden = self.rnn(embedded)  # no cell state in GRU!
+        outputs, hidden = self.rnn.forward(embedded)  # no cell state in GRU!
         # outputs = [src length, batch size, hidden dim * n directions]
         # hidden = [n layers * n directions, batch size, hidden dim]
         # outputs are always from the top hidden layer
+
         return hidden
     
     
@@ -211,19 +222,19 @@ eos_token = "<eos>"
 with open("vocabs/test_de.txt",'r') as f:
     sentences = f.read().split('\n')
 
-
-translations = [
-    translate_sentence(
-        sentence,
-        model,
-        en_token2index,
-        de_nlp,
-        en_index2token,
-        de_token2index,
-        True,
-        sos_token,
-        eos_token,
-        device,
-    ) for sentence in tqdm.tqdm(sentences)
-]
-print("Encoder forward test done.")
+translate_sentence(sentences[0], model, en_token2index, de_nlp, en_index2token, de_token2index, True, sos_token, eos_token, device,)
+# translations = [
+#     translate_sentence(
+#         sentence,
+#         model,
+#         en_token2index,
+#         de_nlp,
+#         en_index2token,
+#         de_token2index,
+#         True,
+#         sos_token,
+#         eos_token,
+#         device,
+#     ) for sentence in tqdm.tqdm(sentences)
+# ]
+# print("Encoder forward test done.")

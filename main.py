@@ -93,10 +93,15 @@ class Decoder(nn.Module):
         )
         # output = [batch size, embedding dim + hidden dim * 2]
         # prediction = self.fc_out(output)
-        # prediction = torch.zeros((output.shape[0], self.output_dim), device=device)
-        # custom_matmul.launch_matmul(output, self.fc_out.weight.T, prediction)
-        # prediction += self.fc_out.bias
-        prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
+        prediction = torch.zeros((output.shape[0], self.output_dim), device=device)
+        custom_matmul.launch_matmul(output, self.fc_out.weight.T, prediction)
+        breakpoint()
+        with open("output/debug.log", "w") as f:
+            print(prediction.numel())
+            print(torch.nonzero(prediction)[0].shape[0], file=f)
+        assert 0
+        prediction += self.fc_out.bias
+        # prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
         # prediction = [batch size, output dim]
         return prediction, hidden
     

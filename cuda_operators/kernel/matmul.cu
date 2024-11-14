@@ -26,11 +26,11 @@ __global__ void matmul_tiling(float *A, float *B, float *C, int M, int N, int K)
             sub_B[ty][tx] = 0;
         }
         __syncthreads();
-        for (int k=0;k<TILE_WIDTH;k+=4) {
+        for (int k=0;k<TILE_WIDTH;k+=1) {
             pvalue += sub_A[ty][k] * sub_B[k][tx];
-            pvalue += sub_A[ty][k+1] * sub_B[k+1][tx];
-            pvalue += sub_A[ty][k+2] * sub_B[k+2][tx];
-            pvalue += sub_A[ty][k+3] * sub_B[k+3][tx];
+            // pvalue += sub_A[ty][k+1] * sub_B[k+1][tx];
+            // pvalue += sub_A[ty][k+2] * sub_B[k+2][tx];
+            // pvalue += sub_A[ty][k+3] * sub_B[k+3][tx];
         }
         __syncthreads();
     }

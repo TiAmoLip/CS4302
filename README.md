@@ -69,6 +69,101 @@ import torch
 print(torch.version.debug) # True
 ```
 
+但是就算这样，也不能正常用gdb，我看了一下pytorch forum，也有人问相关问题，回答是你要用python的调试版才能进入C++代码。于是我又去下了python源码开始编译，过程中其实遇到这样的错误
+```sh
+Python build finished successfully!
+The necessary bits to build these optional modules were not found:
+_bz2                  _curses               _curses_panel      
+_dbm                  _gdbm                 _hashlib           
+_lzma                 _sqlite3              _ssl               
+_tkinter              _uuid                 readline           
+To find the necessary bits, look in setup.py in detect_modules() for the module's name.
+The following modules found by detect_modules() in setup.py, have been
+built by the Makefile instead, as configured by the Setup files:
+_abc                  atexit                pwd                
+time                                                           
+Could not build the ssl module!
+Python requires an OpenSSL 1.0.2 or 1.1 compatible libssl with X509_VERIFY_PARAM_set1_host().
+LibreSSL 2.6.4 and earlier do not provide the necessary APIs, 
+https://github.com/libressl-portable/portable/issues/381
+```
+博客上的做法就是直接嗯装包，但是我装了一波包甚至失败了一个curse(这个博客上也有解决办法，但是我后面莫名其妙没这个报错了)，所以我就直接上去make，安装倒是成功了。但是你还要在pytorch里面重新装一遍。
+
+
+但后来我用非debug版本的python也能gdb，debug版本的优势在于，你用`gdb --args python-debug test.py`进去之后，直接list可以看到python的c调用。首先我`b xx.py`并不能成功设置断点，而`b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/python_variable.cpp:1461`是可以的(当然py文件就是一个加法), pytorch forum里面人教了一个很神奇的方法:
+```py
+def breakpoint():
+    import os, signal
+    os.kill(os.getpid(), signal.SIGTRAP)
+# your code...
+breakpoint()  # set a breakpoint
+# your code...
+```
+
+突然发现pdb其实可以和gdb一块存在
+
+可能的一些breakpoint(老是step进去就晕了)
+```py
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/python_variable.cpp:1461
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/python_variable.cpp:1601
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/LinearAlgebra.cpp:460
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/python_torch_functions_0.cpp:4070 # 这个是matmul的时候用到的
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/LinearAlgebra.cpp:1834 # matmul哈哈哈哈哈哈哈哈哈终于找到你了小子
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/LinearAlgebra.cpp:1710 # 相比上一个更细节
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/VariableType_3.cpp:8174 # 更细节,但这个断点第一次run的时候打不上。
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/cuda/Blas.cpp:420 # 终于跳到cuda了
+# 8174之后还要第三次dispatch
+```
+善用finish和step 10, 最后真能找到kernel. step 1基本不可能，step 20和10基本不会错过。
+```
+(gdb) bt
+#0  at::native::structured_mm_out_cuda::impl (this=0x7fffbe79f370, self=..., mat2=..., result=...)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/cuda/Blas.cpp:422
+#1  0x00007f473ccc8c5e in at::(anonymous namespace)::wrapper_mm (self=..., mat2=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/RegisterCUDA.cpp:14731
+#2  0x00007f473cebb144 in c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(const at::Tensor&, const at::Tensor&), at::(anonymous namespace)::wrapper_mm>, at::Tensor, c10::guts::typelist::typelist<const at::Tensor&, const at::Tensor&> >::operator() (args#1=..., args#0=..., this=0x4027910)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/impl/WrapFunctionIntoFunctor.h:13
+#3  c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(const at::Tensor&, const at::Tensor&), at::(anonymous namespace)::wrapper_mm>, at::Tensor, c10::guts::typelist::typelist<const at::Tensor&, const at::Tensor&> >, at::Tensor(const at::Tensor&, const at::Tensor&)>::call(c10::OperatorKernel *, c10::DispatchKeySet, const at::Tensor &, const at::Tensor &) (functor=0x4027910, args#0=..., args#1=...)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/impl/make_boxed_from_unboxed_functor.h:453
+#4  0x00007f4770348882 in c10::callUnboxedKernelFunction<at::Tensor, at::Tensor const&, at::Tensor const&> (
+    unboxed_kernel_func=0x7f473cebb0aa <c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(const at::Tensor&, const at::Tensor&), at::(anonymous namespace)::wrapper_mm>, at::Tensor, c10::guts::typelist::typelist<const at::Tensor&, const at::Tensor&> >, at::Tensor(const at::Tensor&, const at::Tensor&)>::call(c10::OperatorKernel *, c10::DispatchKeySet, const at::Tensor &, const at::Tensor &)>, functor=0x4027910, dispatchKeySet=...)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/KernelFunction_impl.h:57
+#5  0x00007f477028ce0e in c10::KernelFunction::call<at::Tensor, at::Tensor const&, at::Tensor const&> (dispatchKeySet=..., opHandle=..., this=0x22c3930)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/KernelFunction_impl.h:67
+#6  c10::Dispatcher::redispatch<at::Tensor, at::Tensor const&, at::Tensor const&>(c10::TypedOperatorHandle<at::Tensor (at::Tensor const&, at::Tensor const&)> const&, c10::DispatchKeySet, at::Tensor const&, at::Tensor const&) const (this=0x7f4781c66920 <c10::Dispatcher::realSingleton()::_singleton>, op=..., currentDispatchKeySet=...)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/dispatch/Dispatcher.h:545
+#7  0x00007f47708bf568 in c10::TypedOperatorHandle<at::Tensor (at::Tensor const&, at::Tensor const&)>::redispatch(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&) const (args#1=..., args#0=..., currentDispatchKeySet=..., this=<optimized out>) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/dispatch/Dispatcher.h:419
+#8  at::_ops::mm::redispatch (dispatchKeySet=..., self=..., mat2=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/Operators_3.cpp:3722
+#9  0x00007f4772ed57c0 in at::redispatch::mm (dispatchKeySet=..., self=..., mat2=...)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/RedispatchFunctions.h:4322
+#10 0x00007f4772dfda8e in torch::autograd::VariableType::(anonymous namespace)::<lambda()>::operator()(void) const (__closure=0x7fffbe79f7e0)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/VariableType_3.cpp:8175
+#11 0x00007f4772dfe1f3 in torch::autograd::VariableType::(anonymous namespace)::mm (ks=..., self=..., mat2=...)
+    at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/VariableType_3.cpp:8176
+#12 0x00007f4772e9d724 in c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(c10::DispatchKeySet, const at::Tensor&, const at::Tensor&), to--Type <RET> for more, q to quit, c to continue without paging--c
+rch::autograd::VariableType::(anonymous namespace)::mm>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, const at::Tensor&, const at::Tensor&> >::operator() (args#2=..., args#1=..., args#0=..., this=0x3773370) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/impl/WrapFunctionIntoFunctor.h:13
+#13 c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(c10::DispatchKeySet, const at::Tensor&, const at::Tensor&), torch::autograd::VariableType::(anonymous namespace)::mm>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, const at::Tensor&, const at::Tensor&> >, at::Tensor(c10::DispatchKeySet, const at::Tensor&, const at::Tensor&)>::call(c10::OperatorKernel *, c10::DispatchKeySet, const at::Tensor &, const at::Tensor &) (functor=0x3773370, dispatchKeySet=..., args#0=..., args#1=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/impl/make_boxed_from_unboxed_functor.h:470
+#14 0x00007f4770348882 in c10::callUnboxedKernelFunction<at::Tensor, at::Tensor const&, at::Tensor const&> (unboxed_kernel_func=0x7f4772e9d66e <c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(c10::DispatchKeySet, const at::Tensor&, const at::Tensor&), torch::autograd::VariableType::(anonymous namespace)::mm>, at::Tensor, c10::guts::typelist::typelist<c10::DispatchKeySet, const at::Tensor&, const at::Tensor&> >, at::Tensor(c10::DispatchKeySet, const at::Tensor&, const at::Tensor&)>::call(c10::OperatorKernel *, c10::DispatchKeySet, const at::Tensor &, const at::Tensor &)>, functor=0x3773370, dispatchKeySet=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/KernelFunction_impl.h:57
+#15 0x00007f47708bf2f2 in c10::KernelFunction::call<at::Tensor, at::Tensor const&, at::Tensor const&> (dispatchKeySet=..., opHandle=..., this=0x22c3fd8) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/KernelFunction_impl.h:67
+#16 c10::Dispatcher::call<at::Tensor, at::Tensor const&, at::Tensor const&>(c10::TypedOperatorHandle<at::Tensor (at::Tensor const&, at::Tensor const&)> const&, at::Tensor const&, at::Tensor const&) const (op=..., this=0x7f4781c66920 <c10::Dispatcher::realSingleton()::_singleton>) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/dispatch/Dispatcher.h:536
+#17 c10::TypedOperatorHandle<at::Tensor (at::Tensor const&, at::Tensor const&)>::call(at::Tensor const&, at::Tensor const&) const (args#1=..., args#0=..., this=<optimized out>) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/dispatch/Dispatcher.h:414
+#18 at::_ops::mm::call (self=..., mat2=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/Operators_3.cpp:3715
+#19 0x00007f4782a1cf94 in at::Tensor::mm (this=0x7fffbe7a00a0, mat2=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/core/TensorBody.h:2822
+#20 0x00007f476f9455f0 in at::native::_matmul_impl (out=..., tensor1=..., tensor2=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/LinearAlgebra.cpp:1718
+#21 0x00007f476f94698a in at::native::matmul (tensor1=..., tensor2=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/LinearAlgebra.cpp:1837
+#22 0x00007f477112d9a6 in at::(anonymous namespace)::(anonymous namespace)::wrapper__matmul (self=..., other=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/RegisterCompositeImplicitAutograd.cpp:4125
+#23 0x00007f477123d844 in c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(const at::Tensor&, const at::Tensor&), at::(anonymous namespace)::(anonymous namespace)::wrapper__matmul>, at::Tensor, c10::guts::typelist::typelist<const at::Tensor&, const at::Tensor&> >::operator() (args#1=..., args#0=..., this=0x2d117a0) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/impl/WrapFunctionIntoFunctor.h:13
+#24 c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(const at::Tensor&, const at::Tensor&), at::(anonymous namespace)::(anonymous namespace)::wrapper__matmul>, at::Tensor, c10::guts::typelist::typelist<const at::Tensor&, const at::Tensor&> >, at::Tensor(const at::Tensor&, const at::Tensor&)>::call(c10::OperatorKernel *, c10::DispatchKeySet, const at::Tensor &, const at::Tensor &) (functor=0x2d117a0, args#0=..., args#1=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/impl/make_boxed_from_unboxed_functor.h:453
+#25 0x00007f4770348882 in c10::callUnboxedKernelFunction<at::Tensor, at::Tensor const&, at::Tensor const&> (unboxed_kernel_func=0x7f477123d7aa <c10::impl::wrap_kernel_functor_unboxed_<c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor(const at::Tensor&, const at::Tensor&), at::(anonymous namespace)::(anonymous namespace)::wrapper__matmul>, at::Tensor, c10::guts::typelist::typelist<const at::Tensor&, const at::Tensor&> >, at::Tensor(const at::Tensor&, const at::Tensor&)>::call(c10::OperatorKernel *, c10::DispatchKeySet, const at::Tensor &, const at::Tensor &)>, functor=0x2d117a0, dispatchKeySet=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/KernelFunction_impl.h:57
+#26 0x00007f4770a666fc in c10::KernelFunction::call<at::Tensor, at::Tensor const&, at::Tensor const&> (dispatchKeySet=..., opHandle=..., this=0x22dc618) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/boxing/KernelFunction_impl.h:67
+#27 c10::Dispatcher::call<at::Tensor, at::Tensor const&, at::Tensor const&>(c10::TypedOperatorHandle<at::Tensor (at::Tensor const&, at::Tensor const&)> const&, at::Tensor const&, at::Tensor const&) const (op=..., this=0x7f4781c66920 <c10::Dispatcher::realSingleton()::_singleton>) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/dispatch/Dispatcher.h:536
+#28 c10::TypedOperatorHandle<at::Tensor (at::Tensor const&, at::Tensor const&)>::call(at::Tensor const&, at::Tensor const&) const (args#1=..., args#0=..., this=<optimized out>) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/core/dispatch/Dispatcher.h:414
+#29 at::_ops::matmul::call (self=..., other=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/Operators_4.cpp:2862
+#30 0x00007f4782a1c7f4 in at::Tensor::matmul (this=0x7fffbe7a00a0, other=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/build/aten/src/ATen/core/TensorBody.h:2722
+#31 0x00007f4782a6407e in torch::autograd::<lambda(const at::Tensor&, const at::Tensor&)>::operator()(const at::Tensor &, const at::Tensor &) const (__closure=0x7fffbe7a0098, self=..., other=...) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/python_torch_functions_0.cpp:4086
+#32 0x00007f4782a6440e in torch::autograd::THPVariable_matmul (self_=0x0, args=0x7f47c1841f80, kwargs=0x0) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/python_torch_functions_0.cpp:4088
+```
+以最简单的mm为例子，最终能看到熟人`addmm_out_cuda_impl`，底层用的cudablas就没仔细看。
+
 ## Task 1: Survey Cuda Operators
 The operators in `GRU` can be found in the `output/new_kernel_profiler.txt`. We can find several time-consuming kernels like them: `aten::linear`, `aten::addmm` and `aten::gru`.
 
@@ -80,6 +175,23 @@ Requirements: You should figure out why they can be implemented in parallel, the
 To find the corresponding cuda kernel, we need to make great use of `search` in vscode sidebar. From project pdf, we extract `castPyCFunctionWithKeywords(THPVariable_mm)` and find `python_torch_functionsEverything.cpp`. In this file, we can find the corresponding binding functions of all the mentioned operators above.
 
 以`mm`作为一个研究特例，进入`THPVariable_mm`函数，可以发现里面实际上根据你传的参数的不同，他会走好几条算子的路线，但基本是大差不差的。但是一路走下去点到`op.call`就找不到更具体的实现了，继续看文档
+
+先研究seq2seq里的encoder模块干的事情，这里的算子主要包括embedding、dropout和rnn。通过上面提到的breakpoint和print字符来确定入口，用finish命令加速确定。
+
+但我跑到这里
+```
+call_function (kwnames=0x0, oparg=<error reading variable: dwarf2_find_location_expression: Corrupted DWARF expression.>, 
+    pp_stack=<synthetic pointer>, tstate=0x1066f30) at /usr/local/src/conda/python-3.9.20/Python/ceval.c:5083
+_PyEval_EvalFrameDefault (tstate=<optimized out>, f=0x7f48ea87e040, throwflag=<optimized out>) at /usr/local/src/conda/python-3.9.20/Python/ceval.c:5088
+5088    in /usr/local/src/conda/python-3.9.20/Python/ceval.c
+```
+他就直接完成forward函数了，所以finish还是谨慎用。
+
+Embedding:
+```
+b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/python_torch_functions_0.cpp:2744 # 函数名torch::autograd::THPVariable_embedding，所以后面说不定不用每次都step进去找，但dropout和
+```
+
 
 友情链接:
 - pytorch dispatcher: http://blog.ezyang.com/2020/09/lets-talk-about-the-pytorch-dispatcher/
