@@ -93,14 +93,17 @@ class Decoder(nn.Module):
         )
         # output = [batch size, embedding dim + hidden dim * 2]
         # prediction = self.fc_out(output)
-        prediction = torch.zeros((output.shape[0], self.output_dim), device=device)
-        custom_matmul.launch_matmul(output, self.fc_out.weight.T, prediction)
-        breakpoint()
-        with open("output/debug.log", "w") as f:
-            print(prediction.numel())
-            print(torch.nonzero(prediction)[0].shape[0], file=f)
-        assert 0
-        prediction += self.fc_out.bias
+        # import numpy as np
+        # A = output.detach().cpu().numpy()
+        # A.tofile("A.bin")
+        # B = (self.fc_out.weight.T).detach().cpu().numpy()
+        # B.tofile("B.bin")
+        # C = ref.detach().cpu().numpy()
+        # C.tofile("C.bin")
+        # print(A.shape, B.shape, C.shape)
+        
+        prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
+        
         # prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
         # prediction = [batch size, output dim]
         return prediction, hidden
@@ -226,10 +229,8 @@ eos_token = "<eos>"
 with open("vocabs/test_de.txt",'r') as f:
     sentences = f.read().split('\n')
 
-with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True,with_stack=True) as prof:
-    translations = [
-        translate_sentence(
-            sentence,
+translate_sentence(
+            sentences[0],
             model,
             en_token2index,
             de_nlp,
@@ -238,31 +239,44 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_sh
             True,
             sos_token,
             eos_token,
-            device,
-        ) for sentence in tqdm.tqdm(sentences[:30])
-    ]
+            device,)
+# with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True,with_stack=True) as prof:
+#     translations = [
+#         translate_sentence(
+#             sentence,
+#             model,
+#             en_token2index,
+#             de_nlp,
+#             en_index2token,
+#             de_token2index,
+#             True,
+#             sos_token,
+#             eos_token,
+#             device,
+#         ) for sentence in tqdm.tqdm(sentences[:30])
+#     ]
+# if "new_kernel_profile" != new_profile_log:
+#     with open(f"output/{new_profile_log}.txt", "w") as f:
+#         f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
-with open(f"output/{new_profile_log}.txt", "w") as f:
-    f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
-
-def check_correctness(translations, correct_translations):
-    """
-    Check whether using custom kernels destory the correctness of the model.
-    Args:
-        translations: List[str],
-        correct_translations: List[long_str]
-    """
-    correct_translations = [t.split(" ") for t in correct_translations]
-    translations = [t[0][1:-1] for t in translations]
-    char_level_correctness = 0
-    assert len(translations) <= len(correct_translations)
+# def check_correctness(translations, correct_translations):
+#     """
+#     Check whether using custom kernels destory the correctness of the model.
+#     Args:
+#         translations: List[str],
+#         correct_translations: List[long_str]
+#     """
+#     correct_translations = [t.split(" ") for t in correct_translations]
+#     translations = [t[0][1:-1] for t in translations]
+#     char_level_correctness = 0
+#     assert len(translations) <= len(correct_translations)
     
-    for i in range(len(translations)):
-        if translations[i] == correct_translations[i]:
-            char_level_correctness += 1
-    print(f"Character level correctness: {char_level_correctness/len(translations)}")
-with open("vocabs/original_predictions.txt",'r') as f:
-    correct_translations = f.read().split('\n')
+#     for i in range(len(translations)):
+#         if translations[i] == correct_translations[i]:
+#             char_level_correctness += 1
+#     print(f"Character level correctness: {char_level_correctness/len(translations)}")
+# with open("vocabs/original_predictions.txt",'r') as f:
+#     correct_translations = f.read().split('\n')
 
-check_correctness(translations, correct_translations)
+# check_correctness(translations, correct_translations)

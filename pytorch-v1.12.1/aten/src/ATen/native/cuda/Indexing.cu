@@ -1006,7 +1006,7 @@ tensorInfoLegacyIfScalar(cuda::detail::TensorInfo<T, IndexType> ti) {
 template <typename scalar_t>
 void index_select_out_cuda_impl(
     Tensor& out,
-    const Tensor& self,
+    const Tensor& self, // (7853, 256)
     long dim,
     const Tensor& index) {
   ptrdiff_t numIndices = index.numel();

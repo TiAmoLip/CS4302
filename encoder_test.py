@@ -50,11 +50,11 @@ class Encoder(nn.Module):
     
     def forward(self, src):
         # src = [src length, batch size]
-        breakpoint()
         tmp = self.embedding.forward(src)
 
-        embedded = self.dropout.forward(tmp)
+        embedded = self.dropout.forward(tmp) # 寄，忘了推理的时候dropout是关着的
         # embedded = [src length, batch size, embedding dim]
+        breakpoint()
         outputs, hidden = self.rnn.forward(embedded)  # no cell state in GRU!
         # outputs = [src length, batch size, hidden dim * n directions]
         # hidden = [n layers * n directions, batch size, hidden dim]
