@@ -225,3 +225,7 @@ cu文件里的src和dst都是(1,256), 光看kernel不行，还要注意这个函
 
 ### 1.2 CUDA Runtime
 Requirements: You should figure out when pytorch called cuda runtime api. Describe its role in the pytorch context.
+
+
+## Task 2: Optimize the GRU kernel
+我确实在C++上测了一个比cublas快的乘法，虽然是在特殊的矩阵上,也就是说实际上是向量-矩阵乘法，速度大概是cublas的4.5倍。在`cuda_operators/sgemm.cu`中
