@@ -43,9 +43,7 @@ c#13 0x00007fbdb121e5da in c10::impl::detail::WrapFunctionIntoFunctor_<c10::Comp
 #32 0x00007fbdc2c24cdf in torch::autograd::THPVariable_embedding (self_=0x0, args=0x7fbce3e51ea0, kwargs=0x0) at /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/torch/csrc/autograd/generated/python_torch_functions_0.cpp:2757
 ```
 
-### 部分的mm:
-
-以最简单的mm为例子，最终能看到熟人`addmm_out_cuda_impl`，底层用的cudablas就没仔细看。
+### mm:
 
 ```
 (gdb) bt
