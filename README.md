@@ -215,10 +215,13 @@ cu文件里的src和dst都是(1,256), 光看kernel不行，还要注意这个函
 - pytorch dispatcher: http://blog.ezyang.com/2020/09/lets-talk-about-the-pytorch-dispatcher/
 - pytoch 源码解析(csdn): https://blog.csdn.net/tanmx219/article/details/86705952
 - pytorch C层面调试: https://blog.csdn.net/tanmx219/article/details/86762506 注意，需要你先clean掉之前编译的release版本之后再setup build develop
-- https://blog.csdn.net/Yong_Qi2015/article/details/123415003 手写算子提速的例子
+- 手写算子提速的例子: https://blog.csdn.net/Yong_Qi2015/article/details/123415003
+- cudaBlas doc: https://docs.nvidia.com/cuda/cublas/index.html?highlight=cublasSgemm#cublas-t-gemm
+- 手写算子快于cudaSgemm: https://zhuanlan.zhihu.com/p/518857175
+- 深入浅出gpu优化: https://zhuanlan.zhihu.com/p/435908830，这里面是一个专栏。https://zhuanlan.zhihu.com/p/518857175
 - 代码结构与编译: https://www.luokai.tech/posts/build/
 
-所以可以直接搜一下有无现成的教程
+所以可以直接搜一下有无现成的教程。我的建议是要么写代码试验一下，要么手画一下结构、公式，知道文章在讲什么。
 
 ### 1.2 CUDA Runtime
 Requirements: You should figure out when pytorch called cuda runtime api. Describe its role in the pytorch context.

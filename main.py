@@ -103,7 +103,8 @@ class Decoder(nn.Module):
         # print(A.shape, B.shape, C.shape)
         
         prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
-        
+        print(output.shape, self.fc_out.weight.T.shape) # torch.Size([1, 1280]) torch.Size([1280, 5893])
+        # 因为这里只有这一个地方有matmul，所以我打算直接写一个特殊算子，他接受的第一行正好是0, 而对于这个sgemm，他接受的第一个矩阵的行数为1.
         # prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
         # prediction = [batch size, output dim]
         return prediction, hidden
