@@ -245,20 +245,20 @@ __global__ void lstm_cell_backward(
   }
 }
 
-template <typename scalar_t, typename accscalar_t, typename index_type, int indexing_kind>
+template <typename scalar_t, typename accscalar_t, typename index_type, int indexing_kind> // (index_type: int32_t, indexing_kind 1)
 #if __CUDA_ARCH__ >= 350 || defined(USE_ROCM)
 C10_LAUNCH_BOUNDS_2(512, 4)
 #endif
 __global__ void gru_cell_forward(
-            TensorInfo<scalar_t, index_type> Input,
-            TensorInfo<scalar_t, index_type> Hidden,
+            TensorInfo<scalar_t, index_type> Input, // (1, 1536)
+            TensorInfo<scalar_t, index_type> Hidden,// (1, 1536)
             TensorInfo<scalar_t, index_type> Bias1,
             TensorInfo<scalar_t, index_type> Bias2,
             TensorInfo<scalar_t, index_type> _hx,
             TensorInfo<scalar_t, index_type> _hy,
-            TensorInfo<scalar_t, index_type> storage,
-            index_type hsz,
-            index_type totalElements) {
+            TensorInfo<scalar_t, index_type> storage, //这个对应前面的workspace，用来存forward的。
+            index_type hsz, // hidden size, 512
+            index_type totalElements) { // 512
   bool has_bias = Bias1.data != nullptr;
   for (index_type linearIndex = blockIdx.x * blockDim.x + threadIdx.x;
        linearIndex < totalElements;
@@ -312,6 +312,48 @@ __global__ void gru_cell_forward(
       DEVICE_LINEAR_GET(storage, offset+2*hsz) = F2H(ng);
       DEVICE_LINEAR_GET(storage, offset+3*hsz) = hx;
       DEVICE_LINEAR_GET(storage, offset+4*hsz) = F2H(H2F(hn) + H2F(b2n));
+    }
+}
+
+template <typename scalar_t, typename accscalar_t, typename index_type, int indexing_kind> // (index_type: int32_t, indexing_kind 1)
+#if __CUDA_ARCH__ >= 350 || defined(USE_ROCM)
+C10_LAUNCH_BOUNDS_2(512, 4)
+#endif
+#define FETCH_FLOAT4(pointer) (reinterpret_cast<float4*>(&(pointer))[0])
+__global__ void biased_float_gru_cell_inference_forward(
+            // float* input_hidden_bias_packed,
+            TensorInfo<scalar_t, index_type> input_hidden_bias_packed,
+            // [12] = {ir,ii,in,hr,hi,hn,b1r,b1i,b1n,b2r,b2i,b2n}
+            TensorInfo<scalar_t, index_type> _hx,
+            TensorInfo<scalar_t, index_type> _hy,
+            index_type hsz, // hidden size, 512
+            index_type totalElements) { // 512
+  // 这种情况下bs=1，所以offset=linearIndexMod
+  for (index_type linearIndex = blockIdx.x * blockDim.x + threadIdx.x;
+       linearIndex < totalElements;
+       linearIndex += gridDim.x * blockDim.x) {
+      float op[12];
+      index_type linearIndexMod = linearIndex % hsz;
+      // for (int i = 0; i < 12; i++) {
+      //   // op[i] = DEVICE_LINEAR_GET(input_hidden_bias_packed, 12*linearIndexMod+i);
+      //   op[i] = 0;
+      // }
+      FETCH_FLOAT4(op[0]) = FETCH_FLOAT4(input_hidden_bias_packed.data[12*linearIndex]);
+      FETCH_FLOAT4(op[4]) = FETCH_FLOAT4(input_hidden_bias_packed.data[12*linearIndex+4]);
+      FETCH_FLOAT4(op[8]) = FETCH_FLOAT4(input_hidden_bias_packed.data[12*linearIndex+8]);
+
+      accscalar_t rg, ig, ng;
+
+      rg = sigmoid(H2F(op[0]) + H2F(op[3]) + H2F(op[6]) + H2F(op[9]));
+
+      ig = sigmoid(H2F(op[1]) + H2F(op[4]) + H2F(op[7]) + H2F(op[10]));
+
+      
+      ng = H2F(op[2]) + H2F(op[8]) + rg*( H2F(op[5])+H2F(op[11]) );
+      scalar_t hx = DEVICE_LINEAR_GET(_hx, linearIndex);
+      scalar_t* hy = &DEVICE_LINEAR_GET(_hy, linearIndex);
+      ng = ::tanh(ng);
+      *hy = F2H( ng + ig * ( H2F(hx)-ng ) );
     }
 }
 
@@ -438,32 +480,68 @@ void lstm_backward_impl(const Tensor& grad_hy, const Tensor& grad_cy,
     C10_CUDA_KERNEL_LAUNCH_CHECK();
   }
 }
-
-template<typename scalar_t, typename index_type>
+// workspace: (1, 2560)
+// hx, hy: (1, 512)
+template<typename scalar_t, typename index_type> // (index_type: int32_t)
 void gru_forward_impl(const Tensor& input_gates, const Tensor& hidden_gates,
                       const Tensor& input_bias, const Tensor& hidden_bias,
                       const Tensor& hx,
                       const Tensor& hy, const Tensor& workspace) {
   using accscalar_t = acc_type<scalar_t, /*is_cuda=*/true>;
 
-  dim3 block, grid;
+  dim3 block, grid;// (16, 1, 1), (512, 1, 1)
   int64_t numel = hx.numel();
   if (numel == 0) return;
-  getLaunchConfig(&block, &grid, numel);
+  getLaunchConfig(&block, &grid, numel); // 这个是block开最大线程数，grid能开多大开多大，否则开最大值。
 
-  auto input_gatesI = getTensorInfo<scalar_t, index_type>(input_gates);
-  auto hidden_gatesI = getTensorInfo<scalar_t, index_type>(hidden_gates);
-  auto input_biasI = tryGetTensorInfo<scalar_t, index_type>(input_bias);
-  auto hidden_biasI = tryGetTensorInfo<scalar_t, index_type>(hidden_bias);
-  auto hxI = getTensorInfo<scalar_t, index_type>(hx);
-  auto hyI = getTensorInfo<scalar_t, index_type>(hy);
-  auto workspaceI = getTensorInfo<scalar_t, index_type>(workspace);
-  index_type hidden_size = hxI.sizes[hxI.dims-1];
+  auto input_gatesI = getTensorInfo<scalar_t, index_type>(input_gates); // 每个tensorInfo都有size和stride两个属性，他们的有效数量是dim，这里dim=1，所以只有第0个有效
+  // input_gatesI.sizes = [1536], input_gatesI.strides = [1]
+  auto hidden_gatesI = getTensorInfo<scalar_t, index_type>(hidden_gates);//与input一样
+  auto input_biasI = tryGetTensorInfo<scalar_t, index_type>(input_bias);//与input一样
+  auto hidden_biasI = tryGetTensorInfo<scalar_t, index_type>(hidden_bias);//与input一样
+  auto hxI = getTensorInfo<scalar_t, index_type>(hx);//[512], [1]
+  auto hyI = getTensorInfo<scalar_t, index_type>(hy);//[512], [1]
+  auto workspaceI = getTensorInfo<scalar_t, index_type>(workspace); // [2560], [1]
+  index_type hidden_size = hxI.sizes[hxI.dims-1];//(512)
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
   if (allContiguous({input_gates, hidden_gates, input_bias, hidden_bias, hx, hy, workspace})) {
     collapseDims(input_gatesI, hidden_gatesI, input_biasI, hidden_biasI, hxI, hyI, workspaceI);
-    kernel::gru_cell_forward<scalar_t, accscalar_t, index_type, 1>
+    // 上面的函数将s[100][1][100]简化为s[100][100]
+    if (input_gates.sizes()[0]==1) {
+    //   // reorganize structure
+      auto input_hidden_bias_packed_Tensor = at::empty({1,12*hidden_size}, input_gates.options(), LEGACY_CONTIGUOUS_MEMORY_FORMAT);
+      auto input_hidden_bias_packed = getTensorInfo<scalar_t, index_type>(input_hidden_bias_packed_Tensor);
+      // 难道是主机上不允许做任何对device memory的访存操作吗？
+      float *host_packed = (float*)malloc(12*hidden_size*sizeof(float));
+      float *temp = (float*)malloc(12*hidden_size*sizeof(float));
+      
+      cudaMemcpy(temp, input_gatesI.data, 3*hidden_size*sizeof(float), cudaMemcpyDeviceToHost);
+      cudaMemcpy(temp+3*hidden_size, hidden_gatesI.data, 3*hidden_size*sizeof(float), cudaMemcpyDeviceToHost);
+      cudaMemcpy(temp+6*hidden_size, input_biasI.data, 3*hidden_size*sizeof(float), cudaMemcpyDeviceToHost);
+      cudaMemcpy(temp+9*hidden_size, hidden_biasI.data, 3*hidden_size*sizeof(float), cudaMemcpyDeviceToHost);
+      for (int i = 0; i<hidden_size; i++) {
+        host_packed[12*i] = temp[i];
+        host_packed[12*i+1] = temp[hidden_size+i];
+        host_packed[12*i+2] = temp[2*hidden_size+i];
+        host_packed[12*i+3] = temp[3*hidden_size+i];
+        host_packed[12*i+4] = temp[4*hidden_size+i];
+        host_packed[12*i+5] = temp[5*hidden_size+i];
+        host_packed[12*i+6] = temp[6*hidden_size+i];
+        host_packed[12*i+7] = temp[7*hidden_size+i];
+        host_packed[12*i+8] = temp[8*hidden_size+i];
+        host_packed[12*i+9] = temp[9*hidden_size+i];
+        host_packed[12*i+10] = temp[10*hidden_size+i];
+        host_packed[12*i+11] = temp[11*hidden_size+i];
+      }
+      cudaMemcpy(input_hidden_bias_packed.data, host_packed, 12*hidden_size*sizeof(float), cudaMemcpyHostToDevice);
+      kernel::biased_float_gru_cell_inference_forward<scalar_t, accscalar_t, index_type, 1>
+        <<<grid, block, 0, stream>>>
+          (input_hidden_bias_packed, hxI, hyI, hidden_size, numel);
+    }
+
+    
+    else kernel::gru_cell_forward<scalar_t, accscalar_t, index_type, 1>
       <<<grid, block, 0, stream>>>
         (input_gatesI, hidden_gatesI, input_biasI, hidden_biasI, hxI, hyI, workspaceI, hidden_size, numel);
     C10_CUDA_KERNEL_LAUNCH_CHECK();
@@ -595,8 +673,8 @@ std::tuple<Tensor, Tensor> _thnn_fused_gru_cell_cuda(
       const Tensor& hx, const c10::optional<Tensor>& input_bias_opt, const c10::optional<Tensor>& hidden_bias_opt) {
   // See [Note: hacky wrapper removal for optional tensor]
   c10::MaybeOwned<Tensor> input_bias_maybe_owned = at::borrow_from_optional_tensor(input_bias_opt);
-  const Tensor& input_bias = *input_bias_maybe_owned;
-  const Tensor& hidden_bias = c10::value_or_else(hidden_bias_opt, [] {return Tensor();});
+  const Tensor& input_bias = *input_bias_maybe_owned; //(1536, )
+  const Tensor& hidden_bias = c10::value_or_else(hidden_bias_opt, [] {return Tensor();}); // (1536,)
 
   checkSizes("_thnn_fused_gru_cell_cuda",
              {input_gates, "input_gates", 1}, {hidden_gates, "hidden_gates", 2},
@@ -604,7 +682,7 @@ std::tuple<Tensor, Tensor> _thnn_fused_gru_cell_cuda(
              /*factor=*/3, {hx, "prev_hidden", 5});
 
   auto workspace = at::empty({hx.size(0), hx.size(1) * GRU_WORKSPACE_MULTIPLIER}, hx.options());
-  auto hy = at::empty_like(hx, LEGACY_CONTIGUOUS_MEMORY_FORMAT);
+  auto hy = at::empty_like(hx, LEGACY_CONTIGUOUS_MEMORY_FORMAT); // (1, 512)
   AT_DISPATCH_FLOATING_TYPES_AND_HALF(input_gates.scalar_type(), "_thnn_fused_gru_cell_cuda", [&] {
     if (canUse32BitIndexMath(workspace)) { // See Note [64-bit index math check elision]
       gru_forward_impl<scalar_t, int32_t>(input_gates, hidden_gates, input_bias, hidden_bias, hx, hy, workspace);

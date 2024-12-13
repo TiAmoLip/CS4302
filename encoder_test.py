@@ -12,6 +12,8 @@ import torch
 from torch.profiler import profile, record_function, ProfilerActivity
 import pickle
 import os,signal
+torch.backends.cudnn.enabled = False
+torch.backends.cudnn.benchmark = False
 
 def breakpoint():
     os.kill(os.getpid(), signal.SIGTRAP)
@@ -54,7 +56,6 @@ class Encoder(nn.Module):
 
         embedded = self.dropout.forward(tmp) # 寄，忘了推理的时候dropout是关着的
         # embedded = [src length, batch size, embedding dim]
-        breakpoint()
         outputs, hidden = self.rnn.forward(embedded)  # no cell state in GRU!
         # outputs = [src length, batch size, hidden dim * n directions]
         # hidden = [n layers * n directions, batch size, hidden dim]

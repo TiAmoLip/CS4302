@@ -203,7 +203,7 @@ option(USE_FAST_NVCC "Use parallel NVCC build" OFF)
 option(USE_ROCM "Use ROCm" ON)
 option(CAFFE2_STATIC_LINK_CUDA "Statically link CUDA libraries" OFF)
 cmake_dependent_option(
-    USE_CUDNN "Use cuDNN" ON
+    USE_CUDNN "Use cuDNN" OFF
     "USE_CUDA" OFF)
 cmake_dependent_option(
     USE_STATIC_CUDNN "Use cuDNN static libraries" OFF

@@ -64,10 +64,10 @@ os.environ['CMAKE_BUILD_TYPE'] = 'Debug'
 ```
 然后执行`Debug=1 python setup.py install`, 就可以装出来debug版本的pytorch了。看网上说的，你不装debug版本，调试的时候进不去C++代码，只能看到python代码。
 
+但是我disable cudnn的时候受到了CMakeCache.txt的干扰，把那个改掉就可以。此外可以直接在main.py里面disable掉cudnn.
+
 注意不要在`pytorch-v1.12.1`目录下面进入python然后import torch，会报错。
 ```py
-cd ..
-python
 import torch
 print(torch.version.debug) # True
 ```
@@ -162,8 +162,9 @@ b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/cuda/Indexing
 
 GRU
 ```bash
-b /root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/cudnn/RNN.cpp:1641
+/root/ZhangRui/CS4302/Final/pytorch-v1.12.1/aten/src/ATen/native/cuda/RNN.cu:593
 ```
+在仅推理的情况下，sequence length和num_layers都是1. 看了一圈没看到我rnn的系数矩阵在哪。
 
 #### embedding Indexing.cu
 ```cpp
@@ -232,3 +233,30 @@ Requirements: You should figure out when pytorch called cuda runtime api. Descri
 
 ## Task 2: Optimize the GRU kernel
 我写了一个cu文件，做矩阵乘法，在这种特殊的矩阵乘法上(A矩阵只有1行)在C++上测比cublas快，速度大概是cublas的4.5倍。具体逻辑在`cuda_operators/sgemm.cu`中。
+
+
+
+最近开了一个测试gru kernel里面，各个shape到底是什么意思的测试，这里先记录一下参数:
+```python
+embedding_size = 45
+seqlen = 11
+batch_size = 61
+num_layers = 2
+hidden_size = 128
+```
+结果是，在`RNN.cu`中:
+- input_gates: (bs, 3*hidden_size)
+- hidden_gates: (bs, 3*hidden_size)
+- input_bias: (3*hidden_size)
+- hidden_bias: (3*hidden_size)
+- hx: (bs, hidden_size)
+- workspace: (bs, 5*hidden_size)
+
+这块应当是多次调用cell，而非在一个cell里写for循环调用。所以我们的优化手段，要么你想办法搞一个更快的方式，要么你就把循环写到单个kernel中。`apply_layer_stack`里明确写了for layer循环。
+
+我们这里只针对GRU float cuda推理做优化的话，确实seqlen和bs都是1,此外float用static_cast转为float不会导致延迟，编译器已经自动优化了，所以不用管其他的东西，直接莽。所以可以把store backward部分删了，这个即使你改成torch.eval()还是会跑这个kernel. 然后用prefetch掩盖访存延迟。
+把%运算合并了。
+另一方面，我可以reorganize一下数据结构。这样会在主机transpose的时候引入时延，但是在device上会减少访存次数。
+
+
+试完了reorgainze数据结构，只能说这个理论上应该表现挺好，但是实际上没什么区别。由于我们希望重写的算子_thnn_fused_gru_cell_cuda函数中，所有的参数都是在device上的，而且不允许直接的对device上的指针进行修改，所以我们只能在主机上memcpy，这极大的限制了访存的优化空间。但是好消息是他最起码正确了。此外，即使排除掉四次memcpy的时间，其运行时间也是基本不变的。以及删除保存backward结果也不会明显造成时间的减少。

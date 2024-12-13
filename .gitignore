@@ -176,3 +176,4 @@ pytorch-v1.12.1/torchgen
 pytorch-v1.12.1/torch
 pytorch-v1.12.1/tools
 *.bin
+*.pth

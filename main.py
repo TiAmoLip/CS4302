@@ -1,4 +1,6 @@
 
+import torch.backends
+import torch.backends.cudnn
 import torch.nn as nn
 import torch.optim as optim
 import random
@@ -14,7 +16,9 @@ import custom_matmul
 parser = argparse.ArgumentParser()
 parser.add_argument("--new_profiler_log", type=str, default="False")
 args = parser.parse_args()
-
+# print(torch.backends.cudnn.enabled)
+torch.backends.cudnn.enabled = False
+torch.backends.cudnn.benchmark = False
 if args.new_profiler_log == "False" or args.new_profiler_log == "false" or args.new_profiler_log == "None":
     new_profile_log = "new_kernel_profile"
 else:
@@ -103,7 +107,7 @@ class Decoder(nn.Module):
         # print(A.shape, B.shape, C.shape)
         
         prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
-        print(output.shape, self.fc_out.weight.T.shape) # torch.Size([1, 1280]) torch.Size([1280, 5893])
+        # print(output.shape, self.fc_out.weight.T.shape) # torch.Size([1, 1280]) torch.Size([1280, 5893])
         # 因为这里只有这一个地方有matmul，所以我打算直接写一个特殊算子，他接受的第一行正好是0, 而对于这个sgemm，他接受的第一个矩阵的行数为1.
         # prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
         # prediction = [batch size, output dim]
@@ -230,7 +234,19 @@ eos_token = "<eos>"
 with open("vocabs/test_de.txt",'r') as f:
     sentences = f.read().split('\n')
 
-translate_sentence(
+# translate_sentence(
+#             sentences[0],
+#             model,
+#             en_token2index,
+#             de_nlp,
+#             en_index2token,
+#             de_token2index,
+#             True,
+#             sos_token,
+#             eos_token,
+#             device,)
+with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True,with_stack=True) as prof:
+    translate_sentence(
             sentences[0],
             model,
             en_token2index,
@@ -240,25 +256,11 @@ translate_sentence(
             True,
             sos_token,
             eos_token,
-            device,)
-# with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True,with_stack=True) as prof:
-#     translations = [
-#         translate_sentence(
-#             sentence,
-#             model,
-#             en_token2index,
-#             de_nlp,
-#             en_index2token,
-#             de_token2index,
-#             True,
-#             sos_token,
-#             eos_token,
-#             device,
-#         ) for sentence in tqdm.tqdm(sentences[:30])
-#     ]
-# if "new_kernel_profile" != new_profile_log:
-#     with open(f"output/{new_profile_log}.txt", "w") as f:
-#         f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
+            device,
+        )
+if "new_kernel_profile" != new_profile_log:
+    with open(f"output/{new_profile_log}.txt", "w") as f:
+        f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
 
 # def check_correctness(translations, correct_translations):
