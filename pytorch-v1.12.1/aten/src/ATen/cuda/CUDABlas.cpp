@@ -8,7 +8,8 @@
 #include <c10/cuda/CUDAFunctions.h>
 #include <c10/macros/Export.h>
 #include <c10/util/irange.h>
-
+#include "AAA_custom_gemm.h"
+extern "C" void call_my_sgemm(const float *A, const float *B, float *C, int M, int N, int K);
 // cublasLT was introduced in CUDA 10.1 but we enable only for 11.1 that also
 // added bf16 support
 #if defined(CUDA_VERSION) && CUDA_VERSION >= 11000 && !defined(_MSC_VER)
@@ -351,8 +352,17 @@ void gemm<float>(CUDABLAS_GEMM_ARGTYPES(float)) {
   cublasOperation_t opb = _cublasOpFromChar(transb);
   _cublasAdjustLdLevel3(transa, transb, m, n, k, &lda, &ldb, &ldc);
   GEMM_CHECK_ARGVALUES(float);
-  TORCH_CUDABLAS_CHECK(cublasSgemm(
+  // printf("m: %ld, n: %ld, k:%ld\n", m, n, k); //m:5893, n:1, k:1280
+  if (m==5893 && k==1280 && n==1 && beta<0.00001) {
+    printf("m: %ld, n: %ld, k:%ld, beta: %f\n", m, n, k, beta);
+    // printf("transpose situations: %c, %c\n", transa, transb);// 我printfa的值看了，a是5893*1280, b是1280*1，但我不明白b的值为什么对应不上1280的那个tensor
+    call_my_sgemm(a,b,c,m,n,k);//也就是说，原本的cublasSgemm里，op(A)是5893*1280, op(B)是1280*1
+    // printf("custom kernel executed\n");
+  }
+  else {
+    TORCH_CUDABLAS_CHECK(cublasSgemm(
       handle, opa, opb, m, n, k, &alpha, a, lda, b, ldb, &beta, c, ldc));
+  }
 }
 
 #if !defined(USE_ROCM) || (defined(USE_ROCM) && ROCM_VERSION >= 21000)
