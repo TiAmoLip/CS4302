@@ -91,6 +91,7 @@ __global__ void Sgemm(float * A,float * B, float * C, int M, int N, int K) {
 
 __global__ void Sgemm_naive_stable1(float * A,float * B, float * C, int M, int N, int K) {
     // 76ms
+    // 推荐128线程
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     float operator_a[4];
     float operator_b[4];
@@ -98,16 +99,17 @@ __global__ void Sgemm_naive_stable1(float * A,float * B, float * C, int M, int N
         float sum = 0.0f;
 
         for (int i = 0; i < K/4; i++) {
-            FETCH_FLOAT4(operator_a) = FETCH_FLOAT4(A[row*K+4*i]);
-            FETCH_FLOAT4(operator_b) = FETCH_FLOAT4(B[4*i]);
+            FETCH_FLOAT4(operator_a) = FETCH_FLOAT4(const_cast<float&>(A[row*K+4*i]));
+            FETCH_FLOAT4(operator_b) = FETCH_FLOAT4(const_cast<float&>(B[4*i]));
             sum += operator_a[0] * operator_b[0] + operator_a[1] * operator_b[1] + operator_a[2] * operator_b[2] + operator_a[3] * operator_b[3];
         }
         C[row] = sum;
     }
 }
 
-__global__ void Sgemm_naive(float * A,float * B, float * C, int M, int N, int K) {
+__global__ void Sgemm_naive_stable2(float * A,float * B, float * C, int M, int N, int K) {
     // 93ms
+    // 推荐128线程
     int row = blockIdx.x * blockDim.x + threadIdx.x;
     float operator_a[2][4];
     float operator_b[2][4];
@@ -121,12 +123,84 @@ __global__ void Sgemm_naive(float * A,float * B, float * C, int M, int N, int K)
             FETCH_FLOAT4(operator_a[write_idx]) = FETCH_FLOAT4(A[row*K+(i+1)*4]);
             FETCH_FLOAT4(operator_b[write_idx]) = FETCH_FLOAT4(B[(i+1)*4]);
             sum += operator_a[load_idx][0] * operator_b[load_idx][0] + operator_a[load_idx][1] * operator_b[load_idx][1] + operator_a[load_idx][2] * operator_b[load_idx][2] + operator_a[load_idx][3] * operator_b[load_idx][3];
+            
             write_idx = 1 - write_idx;
         }
         int load_idx = 1-write_idx;
         sum += operator_a[load_idx][0] * operator_b[load_idx][0] + operator_a[load_idx][1] * operator_b[load_idx][1] + operator_a[load_idx][2] * operator_b[load_idx][2] + operator_a[load_idx][3] * operator_b[load_idx][3];
 
         C[row] = sum;
+    }
+}
+__global__ void Sgemm_naive_stable3(float * A,float * B, float * C, int M, int N, int K) {
+    // 53ms
+    // 用512个线程
+    int row = blockIdx.x * blockDim.x/4 + threadIdx.x/4;
+    float operator_a[4];
+    __shared__ float operator_b[1280];
+    __shared__ float result[128][4];
+    // 一个block负责BlockDim.x(512)/4个row, 4个线程负责1个row
+    int thread_load_b_cnt = K / (blockDim.x/2); // 1280/256
+    for (int i = 0; i < thread_load_b_cnt; i++) {
+        if (threadIdx.x < blockDim.x/2) operator_b[threadIdx.x * thread_load_b_cnt + i] = B[threadIdx.x * thread_load_b_cnt + i];
+    }
+    result[threadIdx.x/4][threadIdx.x%4] = 0.0f;
+
+    __syncthreads();
+    int thread_per_line = blockDim.x / 128;
+    int element_per_thread = K / thread_per_line;
+    int thread_calculate_start = (threadIdx.x % 4) * element_per_thread; // 0,1,2,3, 相当于0~127负责计算b的前1/4元素，
+    if (row < M) {
+        float sum = 0.0f;
+
+        for (int i = 0; i < element_per_thread/4;i++) {
+            int idx = 4*i + thread_calculate_start;
+            FETCH_FLOAT4(operator_a) = FETCH_FLOAT4(A[row*K+idx]);
+            sum += operator_a[0] * operator_b[idx] + operator_a[1] * operator_b[idx+1] + operator_a[2] * operator_b[idx+2] + operator_a[3] * operator_b[idx+3];
+        }
+        result[threadIdx.x/4][threadIdx.x%4] = sum;
+        __syncthreads();
+
+        if (threadIdx.x%4==0) {
+            C[row] = result[threadIdx.x/4][0] + result[threadIdx.x/4][1]+ result[threadIdx.x/4][2]+ result[threadIdx.x/4][3];
+        }
+        __syncthreads();
+    }
+}
+
+__global__ void Sgemm_naive_stable3(float * A,float * B, float * C, int M, int N, int K) {
+    // 93ms
+    // 用512个线程
+    int row = blockIdx.x * blockDim.x/4 + threadIdx.x/4;
+    float operator_a[4];
+    __shared__ float operator_b[1280];
+    __shared__ float result[128][4];
+    // 一个block负责BlockDim.x(512)/4个row, 4个线程负责1个row
+    int thread_load_b_cnt = K / (blockDim.x/2); // 1280/256
+    for (int i = 0; i < thread_load_b_cnt; i++) {
+        if (threadIdx.x < blockDim.x/2) operator_b[threadIdx.x * thread_load_b_cnt + i] = B[threadIdx.x * thread_load_b_cnt + i];
+    }
+    result[threadIdx.x/4][threadIdx.x%4] = 0.0f;
+
+    __syncthreads();
+    int thread_per_line = blockDim.x / 128;
+    int element_per_thread = K / thread_per_line;
+    int thread_calculate_start = (threadIdx.x % 4) * element_per_thread; // 0,1,2,3, 相当于0~127负责计算b的前1/4元素，
+    if (row < M) {
+        float sum = 0.0f;
+
+        for (int i = 0; i < element_per_thread/4;i++) {
+            int idx = 4*i + thread_calculate_start;
+            FETCH_FLOAT4(operator_a) = FETCH_FLOAT4(A[row*K+idx]);
+            sum += operator_a[0] * operator_b[idx] + operator_a[1] * operator_b[idx+1] + operator_a[2] * operator_b[idx+2] + operator_a[3] * operator_b[idx+3];
+        }
+        result[threadIdx.x/4][threadIdx.x%4] = sum;
+        __syncthreads();
+
+        if (threadIdx.x%4==0) {
+            C[row] = result[threadIdx.x/4][0] + result[threadIdx.x/4][1]+ result[threadIdx.x/4][2]+ result[threadIdx.x/4][3];
+        }
+        __syncthreads();
     }
 }
 
@@ -234,7 +308,7 @@ int main() {
     float *result_cuda = (float *)malloc(M * N * sizeof(float));
     int threadsPerBlock = 128;
     dim3 DimGrid((M+threadsPerBlock-1)/threadsPerBlock, 1, 1);
-    dim3 DimBlock(threadsPerBlock, 1, 1);
+    dim3 DimBlock(threadsPerBlock*4, 1, 1);
     read_numpy_data(A_cpu, B_cpu, C_cpu, M, N, K);
     float *cuda_A, *cuda_B, *cuda_C;
     cudaMalloc(&cuda_A, M * K * sizeof(float));
