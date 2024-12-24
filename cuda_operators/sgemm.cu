@@ -178,6 +178,73 @@ __global__ void Sgemm_naive_stable3(float * A, float * B, float * C, int M, int 
     }  
 }
 
+__global__ void Sgemm_naive(float * A, float * B, float * C, int M, int N, int K) {  
+    int row = blockIdx.x * blockDim.x/4 + threadIdx.x/4;  
+    
+    // 预取数据的变量  
+    float operator_a[2][4];    
+    
+    __shared__ float operator_b[1280];  
+    __shared__ float result[128];  
+
+    int thread_load_b_cnt = K / (blockDim.x/2);  
+    for (int i = 0; i < thread_load_b_cnt; i++) {  
+        if (threadIdx.x < blockDim.x/2)   
+            operator_b[threadIdx.x * thread_load_b_cnt + i] = B[threadIdx.x * thread_load_b_cnt + i];  
+    }  
+    
+    if (threadIdx.x % 4 == 0) {  
+        result[threadIdx.x/4] = 0.0f;  
+    }  
+    __syncthreads();  
+
+    int thread_per_line = blockDim.x / 128;  
+    int element_per_thread = K / thread_per_line;  
+    int thread_calculate_start = (threadIdx.x % 4) * element_per_thread;  
+
+    if (row < M) {  
+        float local_sum = 0.0f;  
+
+        // 预取第一组数据
+        int write_idx = 0;
+        FETCH_FLOAT4(operator_a[write_idx]) = FETCH_FLOAT4(A[row*K + thread_calculate_start]);  
+        
+        for (int i = 0; i < element_per_thread/4 - 1; i++) {  
+            int idx = 4*i + thread_calculate_start;  
+            write_idx = 1 - write_idx;
+            // 预取下一组数据  
+            FETCH_FLOAT4(operator_a[write_idx]) = FETCH_FLOAT4(A[row*K + idx + 4]);  
+            
+            // 使用当前数据计算  
+            local_sum += operator_a[1-write_idx][0] * operator_b[idx] +   
+                         operator_a[1-write_idx][1] * operator_b[idx+1] +   
+                         operator_a[1-write_idx][2] * operator_b[idx+2] +   
+                         operator_a[1-write_idx][3] * operator_b[idx+3];  
+            
+            // 交换数据  
+            // memcpy(operator_a, operator_a_next, sizeof(float) * 4);  
+        }  
+
+        // 处理最后一组数据  
+        int last_idx = 4 * (element_per_thread/4 - 1) + thread_calculate_start;  
+        local_sum += operator_a[write_idx][0] * operator_b[last_idx] +   
+                     operator_a[write_idx][1] * operator_b[last_idx+1] +   
+                     operator_a[write_idx][2] * operator_b[last_idx+2] +   
+                     operator_a[write_idx][3] * operator_b[last_idx+3];
+                     
+        
+        // 原子加法累加结果  
+        atomicAdd(&result[threadIdx.x/4], local_sum);  
+        __syncthreads();  
+
+        // 只有第一个线程写最终结果  
+        if (threadIdx.x % 4 == 0) {  
+            C[row] = result[threadIdx.x/4];  
+        }  
+        __syncthreads();  
+    }  
+}
+
 __global__ void Sgemm_naive_dev(float * A,float * B, float * C, int M, int N, int K) {
     // 93ms
     // 用512个线程
@@ -209,6 +276,11 @@ __global__ void Sgemm_naive_dev(float * A,float * B, float * C, int M, int N, in
             FETCH_FLOAT4(operator_a[write_idx]) = FETCH_FLOAT4(A[row*K+idx]);
             sum += operator_a[load_idx][0] * operator_b[idx] + operator_a[load_idx][1] * operator_b[idx+1] + operator_a[load_idx][2] * operator_b[idx+2] + operator_a[load_idx][3] * operator_b[idx+3];
         }
+        int last_idx = 4 * (element_per_thread/4 - 1) + thread_calculate_start;  //我觉得很奇怪，怎么加上这一行能额外引入20ms
+        sum += operator_a[write_idx][0] * operator_b[last_idx] +   
+               operator_a[write_idx][1] * operator_b[last_idx+1] +   
+               operator_a[write_idx][2] * operator_b[last_idx+2] +   
+               operator_a[write_idx][3] * operator_b[last_idx+3];  
         result[threadIdx.x/4][threadIdx.x%4] = sum;
         __syncthreads();
 
