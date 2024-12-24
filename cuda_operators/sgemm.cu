@@ -132,47 +132,57 @@ __global__ void Sgemm_naive_stable2(float * A,float * B, float * C, int M, int N
         C[row] = sum;
     }
 }
-__global__ void Sgemm_naive_stable3(float * A,float * B, float * C, int M, int N, int K) {
-    // 53ms
-    // 用512个线程
-    int row = blockIdx.x * blockDim.x/4 + threadIdx.x/4;
-    float operator_a[4];
-    __shared__ float operator_b[1280];
-    __shared__ float result[128][4];
-    // 一个block负责BlockDim.x(512)/4个row, 4个线程负责1个row
-    int thread_load_b_cnt = K / (blockDim.x/2); // 1280/256
-    for (int i = 0; i < thread_load_b_cnt; i++) {
-        if (threadIdx.x < blockDim.x/2) operator_b[threadIdx.x * thread_load_b_cnt + i] = B[threadIdx.x * thread_load_b_cnt + i];
-    }
-    result[threadIdx.x/4][threadIdx.x%4] = 0.0f;
+__global__ void Sgemm_naive_stable3(float * A, float * B, float * C, int M, int N, int K) {  
+    int row = blockIdx.x * blockDim.x/4 + threadIdx.x/4;  
+    float operator_a[4];  
+    __shared__ float operator_b[1280];  
+    __shared__ float result[128];  // 直接使用一维数组  
 
-    __syncthreads();
-    int thread_per_line = blockDim.x / 128;
-    int element_per_thread = K / thread_per_line;
-    int thread_calculate_start = (threadIdx.x % 4) * element_per_thread; // 0,1,2,3, 相当于0~127负责计算b的前1/4元素，
-    if (row < M) {
-        float sum = 0.0f;
+    int thread_load_b_cnt = K / (blockDim.x/2);  
+    for (int i = 0; i < thread_load_b_cnt; i++) {  
+        if (threadIdx.x < blockDim.x/2)   
+            operator_b[threadIdx.x * thread_load_b_cnt + i] = B[threadIdx.x * thread_load_b_cnt + i];  
+    }  
+    
+    // 初始化result  
+    if (threadIdx.x % 4 == 0) {  
+        result[threadIdx.x/4] = 0.0f;  
+    }  
+    __syncthreads();  
 
-        for (int i = 0; i < element_per_thread/4;i++) {
-            int idx = 4*i + thread_calculate_start;
-            FETCH_FLOAT4(operator_a) = FETCH_FLOAT4(A[row*K+idx]);
-            sum += operator_a[0] * operator_b[idx] + operator_a[1] * operator_b[idx+1] + operator_a[2] * operator_b[idx+2] + operator_a[3] * operator_b[idx+3];
-        }
-        result[threadIdx.x/4][threadIdx.x%4] = sum;
-        __syncthreads();
+    int thread_per_line = blockDim.x / 128;  
+    int element_per_thread = K / thread_per_line;  
+    int thread_calculate_start = (threadIdx.x % 4) * element_per_thread;  
 
-        if (threadIdx.x%4==0) {
-            C[row] = result[threadIdx.x/4][0] + result[threadIdx.x/4][1]+ result[threadIdx.x/4][2]+ result[threadIdx.x/4][3];
-        }
-        __syncthreads();
-    }
+    if (row < M) {  
+        float local_sum = 0.0f;  
+
+        for (int i = 0; i < element_per_thread/4; i++) {  
+            int idx = 4*i + thread_calculate_start;  
+            FETCH_FLOAT4(operator_a) = FETCH_FLOAT4(A[row*K+idx]);  
+            local_sum += operator_a[0] * operator_b[idx] +   
+                         operator_a[1] * operator_b[idx+1] +   
+                         operator_a[2] * operator_b[idx+2] +   
+                         operator_a[3] * operator_b[idx+3];  
+        }  
+        
+        // 使用原子加法将局部和累加到result  
+        atomicAdd(&result[threadIdx.x/4], local_sum);  
+        __syncthreads();  
+
+        // 只有第一个线程写最终结果  
+        if (threadIdx.x % 4 == 0) {  
+            C[row] = result[threadIdx.x/4];  
+        }  
+        __syncthreads();  
+    }  
 }
 
-__global__ void Sgemm_naive_stable3(float * A,float * B, float * C, int M, int N, int K) {
+__global__ void Sgemm_naive_dev(float * A,float * B, float * C, int M, int N, int K) {
     // 93ms
     // 用512个线程
     int row = blockIdx.x * blockDim.x/4 + threadIdx.x/4;
-    float operator_a[4];
+    float operator_a[2][4];
     __shared__ float operator_b[1280];
     __shared__ float result[128][4];
     // 一个block负责BlockDim.x(512)/4个row, 4个线程负责1个row
@@ -186,13 +196,18 @@ __global__ void Sgemm_naive_stable3(float * A,float * B, float * C, int M, int N
     int thread_per_line = blockDim.x / 128;
     int element_per_thread = K / thread_per_line;
     int thread_calculate_start = (threadIdx.x % 4) * element_per_thread; // 0,1,2,3, 相当于0~127负责计算b的前1/4元素，
+    int load_idx = 0;
     if (row < M) {
         float sum = 0.0f;
+        int write_idx = 1-load_idx;
+        FETCH_FLOAT4(operator_a[write_idx]) = FETCH_FLOAT4(A[row*K+thread_calculate_start]);
+        for (int i = 0; i < element_per_thread/4-1;i++) {
+            write_idx = 1 - write_idx;
+            load_idx = 1 - write_idx;
+            int idx = 4*(i+1) + thread_calculate_start;
 
-        for (int i = 0; i < element_per_thread/4;i++) {
-            int idx = 4*i + thread_calculate_start;
-            FETCH_FLOAT4(operator_a) = FETCH_FLOAT4(A[row*K+idx]);
-            sum += operator_a[0] * operator_b[idx] + operator_a[1] * operator_b[idx+1] + operator_a[2] * operator_b[idx+2] + operator_a[3] * operator_b[idx+3];
+            FETCH_FLOAT4(operator_a[write_idx]) = FETCH_FLOAT4(A[row*K+idx]);
+            sum += operator_a[load_idx][0] * operator_b[idx] + operator_a[load_idx][1] * operator_b[idx+1] + operator_a[load_idx][2] * operator_b[idx+2] + operator_a[load_idx][3] * operator_b[idx+3];
         }
         result[threadIdx.x/4][threadIdx.x%4] = sum;
         __syncthreads();
