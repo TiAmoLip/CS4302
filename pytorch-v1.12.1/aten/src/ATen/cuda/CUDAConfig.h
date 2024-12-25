@@ -7,7 +7,7 @@
 // NB: This header MUST NOT be included from other headers; it should
 // only be included from C++ files.
 
-#define AT_CUDNN_ENABLED() 1
+#define AT_CUDNN_ENABLED() 0
 #define AT_ROCM_ENABLED() 0
 #define AT_MAGMA_ENABLED() 0
 

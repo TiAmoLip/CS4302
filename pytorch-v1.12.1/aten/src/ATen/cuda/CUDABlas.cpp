@@ -352,12 +352,11 @@ void gemm<float>(CUDABLAS_GEMM_ARGTYPES(float)) {
   cublasOperation_t opb = _cublasOpFromChar(transb);
   _cublasAdjustLdLevel3(transa, transb, m, n, k, &lda, &ldb, &ldc);
   GEMM_CHECK_ARGVALUES(float);
-  // printf("m: %ld, n: %ld, k:%ld\n", m, n, k); //m:5893, n:1, k:1280
-  if (m==5893 && k==1280 && n==1 && beta<0.00001) {
-    printf("m: %ld, n: %ld, k:%ld, beta: %f\n", m, n, k, beta);
-    // printf("transpose situations: %c, %c\n", transa, transb);// 我printfa的值看了，a是5893*1280, b是1280*1，但我不明白b的值为什么对应不上1280的那个tensor
+  // printf("m: %ld, n: %ld, k:%ld, beta: %f\n", m, n, k, beta); //m:5893, n:1, k:1280, beta: 0
+  if (m==5893&&n==1&&k==1280 && beta<0.00001) {
+    // printf("transpose situations: %c, %c\n", transa, transb);// 我printfa的值看了，a是5893*1280, b是1280*1
     call_my_sgemm(a,b,c,m,n,k);//也就是说，原本的cublasSgemm里，op(A)是5893*1280, op(B)是1280*1
-    // printf("custom kernel executed\n");
+    
   }
   else {
     TORCH_CUDABLAS_CHECK(cublasSgemm(
