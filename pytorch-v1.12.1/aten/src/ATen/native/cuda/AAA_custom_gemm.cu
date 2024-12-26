@@ -1,5 +1,5 @@
 #include <ATen/cuda/CUDABlas.h>
-
+#define FETCH_FLOAT4(pointer) (reinterpret_cast<float4*>(&(pointer))[0])
 // A: 1*1280, B: 1280*5893, C: 1*5893
 // 现在得改写了，A: 5893 * 1280, B: (1280,), C: (5893,)
 __global__ void Sgemm_stable(const float * A,const float * B, float * __restrict__ C, int M, int N, int K) {

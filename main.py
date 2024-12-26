@@ -12,7 +12,6 @@ import tqdm
 import torch
 from torch.profiler import profile, record_function, ProfilerActivity
 import pickle
-import custom_matmul
 parser = argparse.ArgumentParser()
 parser.add_argument("--new_profiler_log", type=str, default="False")
 args = parser.parse_args()
@@ -20,7 +19,7 @@ args = parser.parse_args()
 torch.backends.cudnn.enabled = False
 torch.backends.cudnn.benchmark = False
 if args.new_profiler_log == "False" or args.new_profiler_log == "false" or args.new_profiler_log == "None":
-    new_profile_log = "new_kernel_profile"
+    new_profile_log = "original_kernel_profile"
 else:
     new_profile_log = args.new_profiler_log
 
@@ -96,20 +95,15 @@ class Decoder(nn.Module):
             (embedded.squeeze(0), hidden.squeeze(0), context.squeeze(0)), dim=1
         )
         # output = [batch size, embedding dim + hidden dim * 2]
-        # prediction = self.fc_out(output)
-        # import numpy as np
-        # A = output.detach().cpu().numpy()
-        # A.tofile("A.bin")
-        # B = (self.fc_out.weight.T).detach().cpu().numpy()
-        # B.tofile("B.bin")
-        # C = ref.detach().cpu().numpy()
-        # C.tofile("C.bin")
-        # print(A.shape, B.shape, C.shape)
         
         prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
+        
+        # print("custom kernel output: ",prediction)
+        # prediction = self.fc_out(output)
+        # print("true kernel output",prediction)
+
         # print(output.shape, self.fc_out.weight.T.shape) # torch.Size([1, 1280]) torch.Size([1280, 5893])
         # 因为这里只有这一个地方有matmul，所以我打算直接写一个特殊算子，他接受的第一行正好是0, 而对于这个sgemm，他接受的第一个矩阵的行数为1.
-        # prediction = torch.matmul(output, self.fc_out.weight.T) + self.fc_out.bias
         # prediction = [batch size, output dim]
         return prediction, hidden
     
@@ -197,6 +191,7 @@ def translate_sentence(
     max_output_length=25,
 ):
     model.eval()
+    
     with torch.no_grad():
         if isinstance(sentence, str):
             tokens = [token.text for token in de_nlp.tokenizer(sentence)]
@@ -246,8 +241,8 @@ with open("vocabs/test_de.txt",'r') as f:
 #             eos_token,
 #             device,)
 with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True,with_stack=True) as prof:
-    translate_sentence(
-            sentences[0],
+    translations = [translate_sentence(
+            sentence,
             model,
             en_token2index,
             de_nlp,
@@ -257,29 +252,30 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_sh
             sos_token,
             eos_token,
             device,
-        )
-if "new_kernel_profile" != new_profile_log:
-    with open(f"output/{new_profile_log}.txt", "w") as f:
-        f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
+        ) for sentence in tqdm.tqdm(sentences)]
+with open(f"output/{new_profile_log}.txt", "w") as f:
+    f.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20, max_src_column_width=100))
 
-
-# def check_correctness(translations, correct_translations):
-#     """
-#     Check whether using custom kernels destory the correctness of the model.
-#     Args:
-#         translations: List[str],
-#         correct_translations: List[long_str]
-#     """
-#     correct_translations = [t.split(" ") for t in correct_translations]
-#     translations = [t[0][1:-1] for t in translations]
-#     char_level_correctness = 0
-#     assert len(translations) <= len(correct_translations)
     
-#     for i in range(len(translations)):
-#         if translations[i] == correct_translations[i]:
-#             char_level_correctness += 1
-#     print(f"Character level correctness: {char_level_correctness/len(translations)}")
-# with open("vocabs/original_predictions.txt",'r') as f:
-#     correct_translations = f.read().split('\n')
+# print(translations)
 
-# check_correctness(translations, correct_translations)
+def check_correctness(translations, correct_translations):
+    """
+    Check whether using custom kernels destory the correctness of the model.
+    Args:
+        translations: List[str],
+        correct_translations: List[long_str]
+    """
+    correct_translations = [t.split(" ") for t in correct_translations]
+    translations = [t[0][1:-1] for t in translations]
+    char_level_correctness = 0
+    assert len(translations) <= len(correct_translations)
+    
+    for i in range(len(translations)):
+        if translations[i] == correct_translations[i]:
+            char_level_correctness += 1
+    print(f"Character level correctness: {char_level_correctness/len(translations)}")
+with open("vocabs/original_predictions.txt",'r') as f:
+    correct_translations = f.read().split('\n')
+
+check_correctness(translations, correct_translations)

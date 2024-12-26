@@ -1,0 +1,26 @@
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                           aten::matmul         1.72%     940.594ms        16.27%        8.909s     127.872us       0.000us         0.00%     940.902ms      13.505us         69669  
+                                               aten::mm         9.42%        5.160s        14.55%        7.968s     114.371us     940.902ms        68.83%     940.902ms      13.505us         69669  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us     747.681ms        54.70%     747.681ms      17.911us         41745  
+                                              aten::gru         7.68%        4.206s        52.02%       28.488s       1.922ms       0.000us         0.00%     550.433ms      37.136us         14822  
+                                              aten::cat        11.23%        6.152s        15.45%        8.459s     147.657us     143.521ms        10.50%     143.521ms       2.505us         57286  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us     124.322ms         9.10%     124.322ms       8.995us         13821  
+                             aten::_thnn_fused_gru_cell         4.71%        2.577s         9.09%        4.978s     178.271us     102.476ms         7.50%     102.476ms       3.670us         27924  
+void at::native::(anonymous namespace)::kernel::gru_...         0.00%       0.000us         0.00%       0.000us       0.000us     102.476ms         7.50%     102.476ms       3.670us         27924  
+                                           aten::argmax         3.78%        2.068s         4.49%        2.458s     177.844us      82.753ms         6.05%      82.753ms       5.987us         13821  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us      82.753ms         6.05%      82.753ms       5.987us         13821  
+void gemv2T_kernel_val<int, int, float, float, float...         0.00%       0.000us         0.00%       0.000us       0.000us      68.904ms         5.04%      68.904ms       4.886us         14103  
+                                            aten::stack         3.02%        1.655s        12.95%        7.094s     239.312us       0.000us         0.00%      60.175ms       2.030us         29644  
+                         Memcpy DtoD (Device -> Device)         0.00%       0.000us         0.00%       0.000us       0.000us      55.022ms         4.03%      55.022ms       1.921us         28643  
+                                        aten::embedding         1.74%     953.881ms         6.55%        3.588s     242.054us       0.000us         0.00%      48.884ms       3.298us         14822  
+                                     aten::index_select         2.06%        1.128s         3.66%        2.002s     135.063us      48.884ms         3.58%      48.884ms       3.298us         14822  
+void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us      48.196ms         3.53%      48.196ms       3.303us         14593  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us      46.840ms         3.43%      46.840ms       3.160us         14822  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us      41.659ms         3.05%      41.659ms       3.014us         13821  
+                                              aten::add         2.63%        1.440s         3.07%        1.683s     121.801us      28.084ms         2.05%      28.084ms       2.032us         13821  
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us      28.084ms         2.05%      28.084ms       2.032us         13821  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 54.765s
+Self CUDA time total: 1.367s

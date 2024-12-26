@@ -458,5 +458,4 @@ int main() {
         printf("CUDA error: %s\n", cudaGetErrorString(err));  
     }
 }
-// 总结一下，用了unroll, SIMD, shared memory, prefetch, 分块乘法并累加
 // 到时候记得把我们之前照着知乎的那个分块也写一下, 那种就是没充分利用n=1的情况直接套东西,到最后最好的结果是163ms

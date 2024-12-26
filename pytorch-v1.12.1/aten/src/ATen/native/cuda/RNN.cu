@@ -521,9 +521,9 @@ void gru_forward_impl(const Tensor& input_gates, const Tensor& hidden_gates,
       cudaMemcpy(temp+6*hidden_size, input_biasI.data, 3*hidden_size*sizeof(float), cudaMemcpyDeviceToHost);
       cudaMemcpy(temp+9*hidden_size, hidden_biasI.data, 3*hidden_size*sizeof(float), cudaMemcpyDeviceToHost);
       for (int i = 0; i<hidden_size; i++) {
-        host_packed[12*i] = temp[i];
-        host_packed[12*i+1] = temp[hidden_size+i];
-        host_packed[12*i+2] = temp[2*hidden_size+i];
+        host_packed[12*i] = input_gatesI.data[i];
+        host_packed[12*i+1] = input_gatesI.data[hidden_size+i];
+        host_packed[12*i+2] = input_gatesI.data[2*hidden_size+i];
         host_packed[12*i+3] = temp[3*hidden_size+i];
         host_packed[12*i+4] = temp[4*hidden_size+i];
         host_packed[12*i+5] = temp[5*hidden_size+i];

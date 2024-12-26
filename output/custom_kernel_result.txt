@@ -1,0 +1,26 @@
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                           aten::matmul         1.69%     887.566ms        18.57%        9.777s     140.330us       0.000us         0.00%        1.232s      17.685us         69669  
+                                               aten::mm         8.69%        4.577s        16.88%        8.889s     127.590us        1.232s        69.75%        1.232s      17.685us         69669  
+Sgemm_stable(float const*, float const*, float*, int...         0.00%       0.000us         0.00%       0.000us       0.000us     847.394ms        47.97%     847.394ms      61.312us         13821  
+                                              aten::gru         7.54%        3.972s        61.22%       32.235s       2.175ms       0.000us         0.00%     662.731ms      44.713us         14822  
+                             aten::_thnn_fused_gru_cell         9.28%        4.888s        18.72%        9.859s     353.053us     234.775ms        13.29%     234.775ms       8.408us         27924  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us     194.860ms        11.03%     194.860ms       6.978us         27924  
+                       Memcpy DtoH (Device -> Pageable)         0.00%       0.000us         0.00%       0.000us       0.000us     126.440ms         7.16%     126.440ms       1.007us        125517  
+                                              aten::cat        11.28%        5.938s        15.31%        8.061s     140.723us     124.784ms         7.06%     124.784ms       2.178us         57286  
+std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us     124.023ms         7.02%     124.023ms       8.974us         13821  
+                                           aten::argmax         3.02%        1.590s         3.61%        1.900s     137.478us      77.095ms         4.36%      77.095ms       5.578us         13821  
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us      77.095ms         4.36%      77.095ms       5.578us         13821  
+void gemv2T_kernel_val<int, int, float, float, float...         0.00%       0.000us         0.00%       0.000us       0.000us      65.811ms         3.73%      65.811ms       4.666us         14103  
+void at::native::(anonymous namespace)::kernel::bias...         0.00%       0.000us         0.00%       0.000us       0.000us      64.482ms         3.65%      64.482ms       2.309us         27924  
+                       Memcpy HtoD (Pageable -> Device)         0.00%       0.000us         0.00%       0.000us       0.000us      63.629ms         3.60%      63.629ms       1.489us         42746  
+                                        aten::embedding         1.66%     872.788ms         6.32%        3.327s     224.490us       0.000us         0.00%      48.239ms       3.255us         14822  
+                                     aten::index_select         1.96%        1.032s         3.55%        1.867s     125.950us      48.239ms         2.73%      48.239ms       3.255us         14822  
+void at::native::(anonymous namespace)::indexSelectS...         0.00%       0.000us         0.00%       0.000us       0.000us      47.551ms         2.69%      47.551ms       3.258us         14593  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us      45.164ms         2.56%      45.164ms       3.047us         14822  
+                                            aten::stack         3.01%        1.583s        12.85%        6.765s     228.214us       0.000us         0.00%      43.262ms       1.459us         29644  
+void at::native::(anonymous namespace)::CatArrayBatc...         0.00%       0.000us         0.00%       0.000us       0.000us      41.346ms         2.34%      41.346ms       2.992us         13821  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 52.652s
+Self CUDA time total: 1.766s
