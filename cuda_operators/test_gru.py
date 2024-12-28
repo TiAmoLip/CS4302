@@ -2,9 +2,17 @@ from torch import nn
 import torch
 import torch.backends
 import os
-from torch.profiler import profile, record_function, ProfilerActivity
-DEBUG_MODE = True
+import argparse
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
 
+print("usage: run this script first using original pytorch with parameter --DEBUG_MODE False")
+print("Then activate the modified pytorch and run this script again with parameter --DEBUG_MODE True")
+parser = argparse.ArgumentParser()
+parser.add_argument('--DEBUG_MODE', type=str2bool, default=False)
+args = parser.parse_args()
+DEBUG_MODE = args.DEBUG_MODE
+print(f"DEBUG_MODE: {DEBUG_MODE}")
 torch.backends.cudnn.enabled = False
 torch.backends.cudnn.benchmark = False
 embedding_size = 45

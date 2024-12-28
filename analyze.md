@@ -280,4 +280,4 @@ cuda可以用printf，需要在host代码上面加上cudaDeviceSynchronize()，�
 
 nn.Linear的forward不走add_mm_kernel，所以可以利用这个来检查自定义matrix kernel对不对
 
-现在的问题：kernel执行不对,出现一大堆nan，初步推测是把A load到shared memory的问题，以及rc的问题；此外时间测试也要放上，比如我之前说双缓冲慢，那得写出来(byd我之前写好了但是一复制粘贴没了)
+现在的问题：kernel执行不对,出现一大堆nan，初步推测是把A load到shared memory的问题，以及rc的问题；此外时间测试也要放上，比如我之前说双缓冲慢，那得写出来(我之前写好了但是一复制粘贴没了)
